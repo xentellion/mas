@@ -1,0 +1,21 @@
+{
+    "choices": [
+        {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+                "content": "GigaChat is a service capable of interacting with the user in a dialogue format, writing code, and creating texts and images upon the user's request.",
+                "role": "assistant"
+            }
+        }
+    ],
+    "created": 1751012807,
+    "model": "GigaChat-2:2.0.28.2",
+    "object": "chat.completion",
+    "usage": {
+        "completion_tokens": 31,
+        "precached_prompt_tokens": 2,
+        "prompt_tokens": 56,
+        "total_tokens": 87
+    }
+}
