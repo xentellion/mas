@@ -1,9 +1,10 @@
 services:
   baseline:
-    build: .
+    build: 
+      context: .
     container_name: baseline
-    user: 1000:1000
+    # user: 1000:1000
     volumes:
       - type: bind
-        source: ./data
-        target: path2
+        source: data
+        target: /workdir/data
