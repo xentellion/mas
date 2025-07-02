@@ -8,12 +8,12 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 
 
-load_dotenv("data/gigachat/gigachat.env")
+load_dotenv()
 
 TOKEN = os.getenv("TOKEN_GIGACHAT")
-AUTH_PATH = "data/gigachat/access_token.json"
-CERT_PATH_DEFAULT = "data/gigachat/ca-gigachat.pem"
-CERT_CREATE_PATH = "llm_api/gigachat/gen_cert.sh"
+AUTH_PATH = "app/access_token.json"
+CERT_PATH_DEFAULT = "app/ca-gigachat.pem"
+CERT_CREATE_PATH = "app/gen_cert.sh"
 MODEL = "GigaChat-2"
 
 
@@ -76,9 +76,10 @@ class GigachatSession:
                 data=payload,
                 verify=self.cert,
             )
-            return response.json()
-        return response.json()
-
+            return response.json()["choices"]
+        return response.json()["choices"]
+    
+    # certificates 
     def get_cerificate(self):
         if os.path.isfile(CERT_PATH_DEFAULT):
             return CERT_PATH_DEFAULT
@@ -86,12 +87,13 @@ class GigachatSession:
 
     def create_certificate(self):
         try:
-            subprocess.run(["llm_api/gigachat/gen_cert.sh"], shell=True)
+            subprocess.run([CERT_CREATE_PATH], shell=True)
         except Exception as e:
             print(e)
             return None
         return CERT_PATH_DEFAULT
 
+    # access token
     def get_access_token(self):
         if not os.path.isfile(AUTH_PATH):
             return None
@@ -137,8 +139,12 @@ class GigachatSession:
                 indent=4,
                 ensure_ascii=False,
             )
-
-        return GigaChatAccessToken(**response)
+        try:
+            answer = GigaChatAccessToken(**response)
+            return answer
+        except Exception as e:
+            print(f"\033[1;31m {e}\033[0m")
+            return None
 
     def check_access_token(self):
         if self.access_data is None:
