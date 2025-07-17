@@ -14,7 +14,6 @@ TOKEN = os.getenv("TOKEN_GIGACHAT")
 AUTH_PATH = "app/access_token.json"
 CERT_PATH_DEFAULT = "app/ca-gigachat.pem"
 CERT_CREATE_PATH = "app/gen_cert.sh"
-MODEL = "GigaChat-2"
 
 
 class GigaChatAccessToken(BaseModel):
@@ -27,7 +26,13 @@ class GigachatSession:
         self.access_data = None
         self.cert = self.get_cerificate()
 
-    def request(self, system_content, user_content):
+    def request(
+        self,
+        system_content,
+        prompt,
+        model="GigaChat-2",
+        scope="GIGACHAT_API_PERS",
+    ):
         self.check_access_token()
 
         url = "https://gigachat.devices.sberbank.ru/api/v1/chat/completions"
@@ -42,8 +47,8 @@ class GigachatSession:
 
         payload = json.dumps(
             {
-                "scope": "GIGACHAT_API_PERS",
-                "model": MODEL,
+                "scope": scope,
+                "model": model,
                 "messages": [
                     {
                         "role": "system",
@@ -51,7 +56,7 @@ class GigachatSession:
                     },
                     {
                         "role": "user",
-                        "content": user_content,
+                        "content": prompt,
                     },
                 ],
                 "stream": False,
@@ -78,8 +83,8 @@ class GigachatSession:
             )
             return response.json()["choices"]
         return response.json()["choices"]
-    
-    # certificates 
+
+    # certificates
     def get_cerificate(self):
         if os.path.isfile(CERT_PATH_DEFAULT):
             return CERT_PATH_DEFAULT

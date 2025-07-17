@@ -14,3 +14,42 @@ services:
     container_name: gigachat
     ports:
       - "8000:81"
+    restart: unless-stopped
+  
+  zipkin:
+    image: openzipkin/zipkin
+    ports:
+      - "9411:9411"
+    depends_on: [otel-collector]
+    networks:
+      - internal
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ${PWD}/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    networks:
+      - internal
+  chromadb:
+    image: chromadb/chroma:1.0.16.dev5
+    container_name: chromadb
+    environment:
+      - IS_PERSISTENT=TRUE   
+    ports:
+      - "8070:8070"
+    volumes:
+      - type: bind
+        source: ./data/chroma
+        target: /data
+      - type: bind
+        source: ./config/chroma/config.yaml
+        target: /config.yaml
+    depends_on:
+      - otel-collector
+      - zipkin
+    networks:
+      - internal
+    restart: unless-stopped
+
+networks:
+  internal:
