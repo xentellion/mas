@@ -64,25 +64,28 @@ class GigachatSession:
             }
         )
         try:
-            response = requests.request(
-                "POST",
-                url,
-                headers=headers,
-                data=payload,
-                verify=self.cert,
+            req = self.create_request(
+                url, headers, payload, self.cert
             )
+            response = requests.request(**req)
         except requests.exceptions.SSLError as e:
             print(f"\033[1;31m {e}\033[0m")
             self.cert = self.create_certificate()
-            response = requests.request(
-                "POST",
-                url,
-                headers=headers,
-                data=payload,
-                verify=self.cert,
+            req = self.create_request(
+                url, headers, payload, self.cert
             )
+            response = requests.request(**req)
             return response.json()["choices"]
         return response.json()["choices"]
+
+    def create_request(self, url , headers, payload, cert):
+        return {
+            "method" : "POST",
+            "url": url,
+            "headers" : headers,
+            "data" : payload,
+            "verify" : cert,
+        }
 
     # certificates
     def get_cerificate(self):
@@ -96,6 +99,9 @@ class GigachatSession:
         except Exception as e:
             print(e)
             return None
+        if not os.path.isfile(CERT_PATH_DEFAULT):
+            print("File created incorrectly")
+            raise Exception
         return CERT_PATH_DEFAULT
 
     # access token
@@ -134,7 +140,7 @@ class GigachatSession:
             ).json()
         except requests.exceptions.RequestException as e:
             print("Authentication token request error")
-            raise SystemExit(e)
+            print(f"\033[1;31m {e}\033[0m")
 
         with open(AUTH_PATH, "w", encoding="utf-8") as f:
             json.dump(
