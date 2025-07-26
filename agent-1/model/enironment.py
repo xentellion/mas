@@ -1,37 +1,34 @@
-# import pydantic
 import matplotlib.pyplot as plt
 import numpy as np
+import json
 
 import shapely.geometry as sg
 import shapely.ops as so
 from shapely import union, difference
 
 
-class IntersectionException(Exception):
-    def __init__(self, message="Walkable area is intersecting with itself."):
-        self.message = message
-        super().__init__(self.message)
+# /////////////////////////////////////////////
 
-    def __str__(self):
-        return self.message
+
+class Node:
+    def __init__(self, point: sg.Point):
+        self.__point = point
+        self.point_neighbors = []
+
+    @property
+    def point(self):
+        return self.__point
 
 
 class Wall:
-    """Depicts walls, that agents cannot pass through
-
-    Args:
-        area: list of coordinate pairs of a polygon corners
-        enclosed (bool, optional): Describes whether the last point connects to the star or not. Defaults to True.
-    """
-
     def __init__(
         self,
-        area: list[tuple, ...],
-        enclosed: bool = True,
+        area,
+        enclosed=True,
     ):
+        area = [(element["x"], element["y"], element["z"]) for element in area]
         if enclosed:
-            area = np.concatenate((area, [area[0]]))
-        # self.__borders = zip(*area)
+            area += [area[0]]
         self.__borders = sg.Polygon(area)
 
     @property
@@ -39,152 +36,162 @@ class Wall:
         return self.__borders
 
 
-flats = [
-    Wall(
-        [
-            (0, 0),
-            (10, 0),
-            (10, 10),
-            (0, 10),
-        ],
-        True,
-    ),
-    Wall(
-        [
-            (0, 0),
-            (5, 6),
-            (9, 9),
-            # (10, 10),
-            (1, 5),
-        ],
-        True,
-    ),
-    Wall(
-        [
-            (0, 0),
-            (10, 0),
-            (5, 10),
-            (0, 10),
-        ],
-        True,
-    ),
-]
+# /////////////////////////////////////////////
 
 
-def draw(func):
-    def wrapper(ax, *args, **kwargs):
+class AreaRender:
+    def __init__(self, step=1):
+        self.flats = self.load_walls()
+        self.step = step
+
+    def load_walls(self):
+        flats = []
+        try:
+            with open(
+                "/home/xentellion/Desktop/mas/agent-1/data/walls.json",  # I hate this hardode
+                "r",
+                encoding="UTF-8",
+            ) as f:
+                data = json.load(f)
+                for x in data:
+                    try:
+                        element = Wall(**x)
+                    except (ValueError, NameError, TypeError) as e:
+                        print(f"\033[1;31mError loading JSON data:\033[0m {e}")
+                        continue
+                    flats.append(element)
+        except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
+            print(f"\033[1;31mError loading JSON data:\033[0m {e}")
+        return flats
+
+    def render(self):
+        fig, ax = plt.subplots(1, 1)
+        fig.suptitle("Airport")
+
+        area = self.draw_walkable_area(ax, False)
+        self.draw_map(ax, False)
+        if area:
+            points = self.get_nodes_coordinates(area)
+            connections = self.construct_edges(area, points)
+            self.draw_edges(ax)
+
+        self.highlight_point(ax, 40)
+        for i in self.graph[40].point_neighbors:
+            self.highlight_point(ax, i)
+
+        # animation = ArtistAnimation(
+        #     fig,
+        #     frames,  # кадры
+        #     interval=30,  # задержка между кадрами в мс
+        #     blit=True,
+        #     repeat=True,
+        # )
+
+        plt.show()
+
+    def draw_map(self, ax, hide_scale: bool):
         ax.set_aspect("equal")
-        # ax.grid(True)
         ax.xaxis.set_major_locator(plt.MultipleLocator(1))
         ax.yaxis.set_major_locator(plt.MultipleLocator(1))
 
-        result = func(ax, *args, **kwargs)
+        try:
+            area = self.flats[0].borders.boundary
+        except IndexError as e:
+            print(f"\033[1;31mMap building error:\033[0m {e}")
+            return
+        for x in self.flats[1:]:
+            area = area.union(x.borders.boundary)
+        for line in area.geoms:
+            ax.plot(*line.xy, color="black", linewidth=1)
 
-        for label in ax.get_xticklabels():
-            label.set_visible(False)
-        for label in ax.get_yticklabels():
-            label.set_visible(False)
+        if hide_scale:
+            for label in ax.get_xticklabels():
+                label.set_visible(False)
+            for label in ax.get_yticklabels():
+                label.set_visible(False)
 
-        return result
+    def draw_walkable_area(self, ax, hide_scale: bool):
+        total_area = so.unary_union([x.borders for x in self.flats])
+        for x in self.flats[1:]:
+            total_area = total_area.difference(x.borders)
 
-    return wrapper
+        if isinstance(total_area, sg.MultiPolygon):
+            for line in total_area.geoms:
+                ax.fill_between(*line.boundary.xy, color="green")
+        elif isinstance(total_area, sg.Polygon):
+            ax.fill_between(*total_area.boundary.xy, color="green")
+        return total_area
 
-
-@draw
-def draw_map(ax):
-    area = flats[0].borders.boundary
-    for x in flats[1:]:
-        area = area.union(x.borders.boundary)
-    for line in area.geoms:
-        ax.plot(*line.xy, color="black", linewidth=1)
-
-
-@draw
-def draw_walkable(ax):
-    total_area = so.unary_union([x.borders for x in flats])
-    for x in flats[1:]:
-        total_area = total_area.difference(x.borders)
-
-    if isinstance(total_area, sg.MultiPolygon):
-        for line in total_area.geoms:
-            ax.fill_between(*line.boundary.xy, color="green")
-    elif isinstance(total_area, sg.Polygon):
-        ax.fill_between(*total_area.boundary.xy, color="green")
-    return total_area
-
-
-def get_nodes_coordinates(area: sg.Polygon, step: int = 1):
-    x_min, y_min, x_max, y_max = area.bounds
-    n_spacing_x = int(np.ceil((x_max - x_min) / step))  # number of points on X
-    n_spacing_y = int(np.ceil((y_max - y_min) / step))
-    points = (
-        sg.Point(x_min + x * step, y_min + y * step)
-        for y in range(n_spacing_y)
-        for x in range(n_spacing_x)
-    )
-    return list(
-        filter(lambda z: area.contains(z) and z.distance(area.boundary) > 1e-2, points)
-    )
-
-
-def draw_nodes(ax, nodes):
-    # Take list of nodes, convert to tuple of X's of Y's and draw on axis
-    ax.scatter(*zip(*((point.x, point.y) for point in nodes)), color="black")
-
-
-def construct_edges(area, nodes, step=1):
-    # two_dim_points = {}
-    # for point in nodes:
-    #     if point.x not in two_dim_points:
-    #         two_dim_points[point.x] = []
-    #     two_dim_points[point.x].append(point)
-    # two_dim_points = [x for x in two_dim_points.values()]
-    # print(two_dim_points)
-
-    connections = []
-
-    for idx, point in enumerate(nodes[:-1]):
-        near = [
-            pt
-            for pt in nodes[idx + 1 :]
-            if (pt.x - point.x == step and point.y == pt.y)
-            or (pt.y - point.y == step and pt.x == point.x)
-        ]
-        if near:
-            lines = filter(
-                lambda x: not x.intersects(area.boundary),
-                (sg.LineString([point, x]) for x in near),
+    def get_nodes_coordinates(self, area: sg.Polygon):
+        x_min, y_min, x_max, y_max = area.bounds
+        n_spacing_x = int(np.ceil((x_max - x_min) / self.step))  # number of points on X
+        n_spacing_y = int(np.ceil((y_max - y_min) / self.step))
+        points = (
+            sg.Point(x_min + x * self.step, y_min + y * self.step)
+            for y in range(n_spacing_y)
+            for x in range(n_spacing_x)
+        )
+        return list(
+            filter(
+                lambda z: area.contains(z) and z.distance(area.boundary) > 1e-2,
+                points,
             )
-            connections += list(lines)
-    return connections
+        )
+
+    def draw_nodes(self, ax, nodes):
+        # Take list of nodes, convert to tuple of X's of Y's and draw on axis
+        ax.scatter(*zip(*((point.x, point.y) for point in nodes)), color="black")
+
+    def construct_edges(self, area, nodes):
+        self.graph = {k: Node(v) for k, v in enumerate(nodes)}
+        self.graph_lines = []
+        nodes = tuple(self.graph.values())
+
+        for idx, p in self.graph.items():
+            # check bottom and right connections
+            nearest_points = [
+                (i, pt)
+                for i, pt in enumerate(nodes[idx + 1 :], start=idx + 1)
+                if (pt.point.x - p.point.x == self.step and p.point.y == pt.point.y)
+                or (pt.point.y - p.point.y == self.step and pt.point.x == p.point.x)
+            ]
+            # save and optionally draw
+            if nearest_points:
+                # Filter out lines intersecting borders and transpose to indexes and points
+                transposed = tuple(
+                    zip(
+                        *filter(
+                            lambda z: not z[1].intersects(area.boundary),
+                            (
+                                (x, sg.LineString([p.point, y.point]))
+                                for x, y in nearest_points
+                            ),
+                        )
+                    )
+                )
+                # Add indexes to correlating nodes
+                self.graph[idx].point_neighbors += transposed[0]
+                for node in nearest_points:
+                    self.graph[node[0]].point_neighbors += [idx]
+                self.graph_lines += list(transposed[1])
+
+    def draw_edges(self, ax):
+        for con in self.graph_lines:
+            ax.plot(*con.xy, color="#999999", linewidth=1)
+
+    def highlight_point(self, ax, index, human_size=0.25):
+        circle = plt.Circle(
+            self.graph[index].point.xy, human_size, color="blue", zorder=10
+        )
+        ax.add_patch(circle)
 
 
-def draw_edges(ax, connections):
-    for con in connections:
-        ax.plot(*con.xy, color="#999999", linewidth=1)
+# /////////////////////////////////////////////
 
 
 def main():
-    # fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
-    # fig.suptitle("3 levels of airport")
-
-    # ax = (ax1, ax2, ax3)
-    # for idx, field in enumerate(ax):
-    #     draw_walkable(field)
-    #     draw_map(field)
-    step = 0.25
-
-    fig, ax = plt.subplots(1, 1)
-    fig.suptitle("Airport")
-    area = draw_walkable(ax)
-    draw_map(ax)
-    points = get_nodes_coordinates(area, step)
-
-    connections = construct_edges(area, points, step)
-    # draw_nodes(ax, points)
-
-    draw_edges(ax, connections)
-    plt.show()
+    ren = AreaRender(step=0.5)
+    ren.render()
 
 
 if __name__ == "__main__":
