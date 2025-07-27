@@ -39,6 +39,67 @@ class Wall:
 # /////////////////////////////////////////////
 
 
+class Pathfinder:
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def plot_path(graph: dict, point_a: int, point_b: int):
+        target_node = graph[point_b]
+        current_node = graph[point_a]
+        previous_node = None
+
+        path = []
+        distances = [
+            (point_a, Pathfinder.euclidian_distance(current_node, target_node))
+        ]
+        visited = []
+
+        steps = 0
+        found = False
+        while not found:
+            if point_b in current_node.point_neighbors:
+                found = True
+                distances.append((point_b, np.float64(0)))
+                continue
+            for cur_p in current_node.point_neighbors:
+                if any(x[0] == cur_p for x in distances):
+                    continue
+                distances.append(
+                    (cur_p, Pathfinder.euclidian_distance(graph[cur_p], target_node))
+                )
+            distances.sort(key=lambda x: x[1])
+
+            for x in distances:
+                if x in visited:
+                    continue
+                new_node = graph[x[0]]
+                if new_node == current_node:
+                    visited.append(x)
+                else:
+                    current_node = new_node
+                    break
+
+            steps += 1
+        print(path, distances, sep="\n\n")
+        return list(zip(*distances))[0]
+
+    # this method ABSOLUTELY should be on GPU
+    @staticmethod
+    def calculate_distance_heuristic(graph: dict, target: int):
+        new_graph = {}
+        for k, v in graph.items():
+            dist = Pathfinder.euclidian_distance(v.point, graph[target].point)
+            # Add some modifiers later
+            new_graph[k] = dist
+
+        return new_graph
+
+    @staticmethod
+    def euclidian_distance(point_a: Node, point_b: Node):
+        return np.linalg.norm(np.array(point_a.point.xy) - np.array(point_b.point.xy))
+
+
 class AreaRender:
     def __init__(self, step=1):
         self.flats = self.load_walls()
@@ -75,8 +136,15 @@ class AreaRender:
             connections = self.construct_edges(area, points)
             self.draw_edges(ax)
 
-        self.highlight_point(ax, 40)
-        for i in self.graph[40].point_neighbors:
+        # test
+        # self.highlight_point(ax, 0)
+        # self.highlight_point(ax, len(self.graph) - 28)
+
+        # pathfinding
+        # path = Pathfinder.plot_path(self.graph, 0, len(self.graph) - 28)
+        path = Pathfinder.plot_path(self.graph, 13, len(self.graph) - 28)
+
+        for i in path:
             self.highlight_point(ax, i)
 
         # animation = ArtistAnimation(
