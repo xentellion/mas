@@ -1,111 +1,23 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import json
-
-import shapely.geometry as sg
-import shapely.ops as so
-from shapely import union, difference
-
 import time
 
+from shapely.geometry import Point, Polygon, MultiPolygon, LineString
+from shapely.ops import unary_union
+from shapely import union, difference
 
-# /////////////////////////////////////////////
-
-
-class Node:
-    def __init__(self, point: sg.Point):
-        self.__point = point
-        self.point_neighbors = []
-
-    @property
-    def point(self):
-        return self.__point
+from node import Node
+from wall import Wall
+from pathfinder import Pathfinder
 
 
-class Wall:
-    def __init__(
-        self,
-        area,
-        enclosed=True,
-    ):
-        area = [(element["x"], element["y"], element["z"]) for element in area]
-        if enclosed:
-            area += [area[0]]
-        self.__borders = sg.Polygon(area)
-
-    @property
-    def borders(self):
-        return self.__borders
-
-
-# /////////////////////////////////////////////
-
-
-class Paths:
+class Path:
     def __init__(self, previous_path=None):
         self.__path = [] if previous_path is None else previous_path
 
     def __len__(self):
         return len(self.__path)
-
-
-class Pathfinder:
-    def __init__(self):
-        pass
-
-    @staticmethod
-    def plot_path(graph: dict, point_a: int, point_b: int):
-        target_node = graph[point_b]
-        current_node = graph[point_a]
-        previous_node = None
-
-        path = [point_a]
-
-        distances = {
-            point_a: current_node.point.distance(target_node.point),
-        }
-        visited = []
-
-        steps = 0
-        found = False
-        while not found:
-            # stop if found the target in neighbours
-            if point_b in current_node.point_neighbors:
-                found = True
-                path.append(point_b)
-                continue
-            # collect dictionary of bird-fly distances from node to the final point
-            for cur_p in current_node.point_neighbors:
-                if cur_p not in distances:
-                    distances[cur_p] = graph[cur_p].point.distance(target_node.point)
-
-            next_step = []
-            for x in current_node.point_neighbors:
-                if x in visited:
-                    continue
-                if x in path:
-                    delta = len(path) - 1 - path.index(x)
-                    if delta > 1:
-                        next_step = []
-                        # next_step.append((x, distances[x] + len(path[: path.index(x)])))
-                        break
-                else:
-                    next_step.append((x, distances[x] + len(path)))
-            next_step.sort(key=lambda x: x[1])
-
-            if len(next_step) > 0:
-                path.append(next_step[0][0])
-            else:
-                vis_node = path.pop(-1)
-                visited.append(vis_node)
-
-            current_node = graph[path[-1]]
-            # print("path", path, "\n\n")
-
-            steps += 1
-        print(steps)
-        return path
-        # return visited
 
 
 class AreaRender:
@@ -189,23 +101,23 @@ class AreaRender:
                 label.set_visible(False)
 
     def draw_walkable_area(self, ax, hide_scale: bool):
-        total_area = so.unary_union([x.borders for x in self.flats])
+        total_area = unary_union([x.borders for x in self.flats])
         for x in self.flats[1:]:
             total_area = total_area.difference(x.borders)
 
-        if isinstance(total_area, sg.MultiPolygon):
+        if isinstance(total_area, MultiPolygon):
             for line in total_area.geoms:
                 ax.fill_between(*line.boundary.xy, color="green")
-        elif isinstance(total_area, sg.Polygon):
+        elif isinstance(total_area, Polygon):
             ax.fill_between(*total_area.boundary.xy, color="green")
         return total_area
 
-    def get_nodes_coordinates(self, area: sg.Polygon):
+    def get_nodes_coordinates(self, area: Polygon):
         x_min, y_min, x_max, y_max = area.bounds
         n_spacing_x = int(np.ceil((x_max - x_min) / self.step))  # number of points on X
         n_spacing_y = int(np.ceil((y_max - y_min) / self.step))
         points = (
-            sg.Point(x_min + x * self.step, y_min + y * self.step)
+            Point(x_min + x * self.step, y_min + y * self.step)
             for y in range(n_spacing_y)
             for x in range(n_spacing_x)
         )
@@ -230,8 +142,8 @@ class AreaRender:
             nearest_points = [
                 (i, pt)
                 for i, pt in enumerate(nodes[idx + 1 :], start=idx + 1)
-                if (pt.point.x - p.point.x == self.step and p.point.y == pt.point.y)
-                or (pt.point.y - p.point.y == self.step and pt.point.x == p.point.x)
+                if (pt.x - p.x == self.step and p.y == pt.y)
+                or (pt.y - p.y == self.step and pt.x == p.x)
             ]
             # save and optionally draw
             if nearest_points:
@@ -242,7 +154,7 @@ class AreaRender:
                             # lambda z: z,
                             lambda z: not z[1].intersects(area.boundary),
                             (
-                                (x, sg.LineString([p.point, y.point]))
+                                (x, LineString([p.point, y.point]))
                                 for x, y in nearest_points
                             ),
                         )
@@ -263,8 +175,8 @@ class AreaRender:
             self.graph[index].point.xy, human_size, color="blue", zorder=10
         )
         text = plt.text(
-            self.graph[index].point.x - human_size,
-            self.graph[index].point.y - human_size / 2,
+            self.graph[index].x - human_size,
+            self.graph[index].y - human_size / 2,
             str(index),
             color="black",
             zorder=100,
