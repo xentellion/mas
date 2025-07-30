@@ -6,6 +6,8 @@ import shapely.geometry as sg
 import shapely.ops as so
 from shapely import union, difference
 
+import time
+
 
 # /////////////////////////////////////////////
 
@@ -39,6 +41,14 @@ class Wall:
 # /////////////////////////////////////////////
 
 
+class Paths:
+    def __init__(self, previous_path=None):
+        self.__path = [] if previous_path is None else previous_path
+
+    def __len__(self):
+        return len(self.__path)
+
+
 class Pathfinder:
     def __init__(self):
         pass
@@ -49,55 +59,53 @@ class Pathfinder:
         current_node = graph[point_a]
         previous_node = None
 
-        path = []
-        distances = [
-            (point_a, Pathfinder.euclidian_distance(current_node, target_node))
-        ]
+        path = [point_a]
+
+        distances = {
+            point_a: current_node.point.distance(target_node.point),
+        }
         visited = []
 
         steps = 0
         found = False
         while not found:
+            # stop if found the target in neighbours
             if point_b in current_node.point_neighbors:
                 found = True
-                distances.append((point_b, np.float64(0)))
+                path.append(point_b)
                 continue
+            # collect dictionary of bird-fly distances from node to the final point
             for cur_p in current_node.point_neighbors:
-                if any(x[0] == cur_p for x in distances):
-                    continue
-                distances.append(
-                    (cur_p, Pathfinder.euclidian_distance(graph[cur_p], target_node))
-                )
-            distances.sort(key=lambda x: x[1])
+                if cur_p not in distances:
+                    distances[cur_p] = graph[cur_p].point.distance(target_node.point)
 
-            for x in distances:
+            next_step = []
+            for x in current_node.point_neighbors:
                 if x in visited:
                     continue
-                new_node = graph[x[0]]
-                if new_node == current_node:
-                    visited.append(x)
+                if x in path:
+                    delta = len(path) - 1 - path.index(x)
+                    if delta > 1:
+                        next_step = []
+                        # next_step.append((x, distances[x] + len(path[: path.index(x)])))
+                        break
                 else:
-                    current_node = new_node
-                    break
+                    next_step.append((x, distances[x] + len(path)))
+            next_step.sort(key=lambda x: x[1])
+
+            if len(next_step) > 0:
+                path.append(next_step[0][0])
+            else:
+                vis_node = path.pop(-1)
+                visited.append(vis_node)
+
+            current_node = graph[path[-1]]
+            # print("path", path, "\n\n")
 
             steps += 1
-        print(path, distances, sep="\n\n")
-        return list(zip(*distances))[0]
-
-    # this method ABSOLUTELY should be on GPU
-    @staticmethod
-    def calculate_distance_heuristic(graph: dict, target: int):
-        new_graph = {}
-        for k, v in graph.items():
-            dist = Pathfinder.euclidian_distance(v.point, graph[target].point)
-            # Add some modifiers later
-            new_graph[k] = dist
-
-        return new_graph
-
-    @staticmethod
-    def euclidian_distance(point_a: Node, point_b: Node):
-        return np.linalg.norm(np.array(point_a.point.xy) - np.array(point_b.point.xy))
+        print(steps)
+        return path
+        # return visited
 
 
 class AreaRender:
@@ -137,12 +145,14 @@ class AreaRender:
             self.draw_edges(ax)
 
         # test
-        # self.highlight_point(ax, 0)
-        # self.highlight_point(ax, len(self.graph) - 28)
+        start_time = time.perf_counter()
 
-        # pathfinding
-        # path = Pathfinder.plot_path(self.graph, 0, len(self.graph) - 28)
-        path = Pathfinder.plot_path(self.graph, 13, len(self.graph) - 28)
+        path = Pathfinder.plot_path(self.graph, 12, 44)
+        # path = Pathfinder.plot_path(self.graph, 44, 12)
+        # path = Pathfinder.plot_path(self.graph, 13, 71)
+
+        end_time = time.perf_counter()
+        print(f"Path found in {(end_time - start_time):.5f} seconds")
 
         for i in path:
             self.highlight_point(ax, i)
@@ -229,6 +239,7 @@ class AreaRender:
                 transposed = tuple(
                     zip(
                         *filter(
+                            # lambda z: z,
                             lambda z: not z[1].intersects(area.boundary),
                             (
                                 (x, sg.LineString([p.point, y.point]))
@@ -239,8 +250,8 @@ class AreaRender:
                 )
                 # Add indexes to correlating nodes
                 self.graph[idx].point_neighbors += transposed[0]
-                for node in nearest_points:
-                    self.graph[node[0]].point_neighbors += [idx]
+                for node in transposed[0]:
+                    self.graph[node].point_neighbors += [idx]
                 self.graph_lines += list(transposed[1])
 
     def draw_edges(self, ax):
@@ -251,7 +262,15 @@ class AreaRender:
         circle = plt.Circle(
             self.graph[index].point.xy, human_size, color="blue", zorder=10
         )
+        text = plt.text(
+            self.graph[index].point.x - human_size,
+            self.graph[index].point.y - human_size / 2,
+            str(index),
+            color="black",
+            zorder=100,
+        )
         ax.add_patch(circle)
+        # ax.add_patch(text)
 
 
 # /////////////////////////////////////////////
