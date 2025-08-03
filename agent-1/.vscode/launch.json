@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Agent Debug",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "${workspaceFolder}/venv-agent/bin/python",
+            "program": "${workspaceFolder}/model/enironment.py",
+            "console": "integratedTerminal"
+        }
+    ]
+}

@@ -7,7 +7,7 @@ class Wall:
         area,
         enclosed=True,
     ):
-        area = [(element["x"], element["y"], element["z"]) for element in area]
+        area = [(element["x"], element["y"]) for element in area]
         if enclosed:
             area += [area[0]]
         self.__borders = Polygon(area)

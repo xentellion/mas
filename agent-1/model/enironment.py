@@ -5,19 +5,11 @@ import time
 
 from shapely.geometry import Point, Polygon, MultiPolygon, LineString
 from shapely.ops import unary_union
-from shapely import union, difference
 
 from node import Node
 from wall import Wall
 from pathfinder import Pathfinder
-
-
-class Path:
-    def __init__(self, previous_path=None):
-        self.__path = [] if previous_path is None else previous_path
-
-    def __len__(self):
-        return len(self.__path)
+from aux import achtung_print
 
 
 class AreaRender:
@@ -25,11 +17,11 @@ class AreaRender:
         self.flats = self.load_walls()
         self.step = step
 
-    def load_walls(self):
+    def load_walls(self, path="data/walls.json"):
         flats = []
         try:
             with open(
-                "/home/xentellion/Desktop/mas/agent-1/data/walls.json",  # I hate this hardode
+                path,  # I hate this hardode
                 "r",
                 encoding="UTF-8",
             ) as f:
@@ -38,28 +30,37 @@ class AreaRender:
                     try:
                         element = Wall(**x)
                     except (ValueError, NameError, TypeError) as e:
-                        print(f"\033[1;31mError loading JSON data:\033[0m {e}")
+                        achtung_print("Error loading JSON data", e)
                         continue
                     flats.append(element)
         except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
-            print(f"\033[1;31mError loading JSON data:\033[0m {e}")
+            achtung_print("Error loading JSON data", e)
+            return
         return flats
 
     def render(self):
         fig, ax = plt.subplots(1, 1)
         fig.suptitle("Airport")
 
-        area = self.draw_walkable_area(ax, False)
+        area = self.draw_walkable_area(ax)
+        if self.flats is None:
+            return
         self.draw_map(ax, False)
-        if area:
+        if isinstance(area, Polygon):
             points = self.get_nodes_coordinates(area)
-            connections = self.construct_edges(area, points)
-            self.draw_edges(ax)
+            self.construct_edges(area, points)
+            # self.draw_edges(ax)
+        elif isinstance(area, MultiPolygon):
+            points = [self.get_nodes_coordinates(a) for a in area.geoms]
+            for i in points:
+                self.construct_edges(area, i)
+                # self.draw_edges(ax)
 
         # test
         start_time = time.perf_counter()
 
-        path = Pathfinder.plot_path(self.graph, 12, 44)
+        path = []
+        path = Pathfinder.plot_path(self.graph, 12, 8750)
         # path = Pathfinder.plot_path(self.graph, 44, 12)
         # path = Pathfinder.plot_path(self.graph, 13, 71)
 
@@ -67,8 +68,7 @@ class AreaRender:
         print(f"Path found in {(end_time - start_time):.5f} seconds")
 
         for i in path:
-            self.highlight_point(ax, i)
-
+            self.highlight_point(ax, i, show_numbers=False)
         # animation = ArtistAnimation(
         #     fig,
         #     frames,  # кадры
@@ -79,7 +79,7 @@ class AreaRender:
 
         plt.show()
 
-    def draw_map(self, ax, hide_scale: bool):
+    def draw_map(self, ax, show_scale: bool = False):
         ax.set_aspect("equal")
         ax.xaxis.set_major_locator(plt.MultipleLocator(1))
         ax.yaxis.set_major_locator(plt.MultipleLocator(1))
@@ -87,20 +87,22 @@ class AreaRender:
         try:
             area = self.flats[0].borders.boundary
         except IndexError as e:
-            print(f"\033[1;31mMap building error:\033[0m {e}")
+            achtung_print("Map building error", e)
             return
         for x in self.flats[1:]:
             area = area.union(x.borders.boundary)
         for line in area.geoms:
             ax.plot(*line.xy, color="black", linewidth=1)
 
-        if hide_scale:
+        if not show_scale:
             for label in ax.get_xticklabels():
                 label.set_visible(False)
             for label in ax.get_yticklabels():
                 label.set_visible(False)
 
-    def draw_walkable_area(self, ax, hide_scale: bool):
+    def draw_walkable_area(self, ax):
+        if self.flats is None:
+            return
         total_area = unary_union([x.borders for x in self.flats])
         for x in self.flats[1:]:
             total_area = total_area.difference(x.borders)
@@ -151,7 +153,6 @@ class AreaRender:
                 transposed = tuple(
                     zip(
                         *filter(
-                            # lambda z: z,
                             lambda z: not z[1].intersects(area.boundary),
                             (
                                 (x, LineString([p.point, y.point]))
@@ -170,17 +171,18 @@ class AreaRender:
         for con in self.graph_lines:
             ax.plot(*con.xy, color="#999999", linewidth=1)
 
-    def highlight_point(self, ax, index, human_size=0.25):
+    def highlight_point(self, ax, index, human_size=0.25, show_numbers=True):
         circle = plt.Circle(
             self.graph[index].point.xy, human_size, color="blue", zorder=10
         )
-        text = plt.text(
-            self.graph[index].x - human_size,
-            self.graph[index].y - human_size / 2,
-            str(index),
-            color="black",
-            zorder=100,
-        )
+        if show_numbers:
+            plt.text(
+                self.graph[index].x - human_size,
+                self.graph[index].y - human_size / 2,
+                str(index),
+                color="black",
+                zorder=100,
+            )
         ax.add_patch(circle)
         # ax.add_patch(text)
 
