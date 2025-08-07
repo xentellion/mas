@@ -1,16 +1,19 @@
+import logging
+
+from extras import execution_timer
 from node import Node
 from queue import PriorityQueue
-from aux import achtung_print
 
 
 class Pathfinder:
     @staticmethod
+    @execution_timer("Path search")
     def plot_path(graph, point_a: int, point_b: int):
         if point_a not in graph:
-            achtung_print("Starting point not in graph")
+            logging.error("Starting point not in graph")
             return list()
         if point_b not in graph:
-            achtung_print("Target point not in graph")
+            logging.error("Target point not in graph")
             return list()
 
         current_node = None
@@ -23,15 +26,15 @@ class Pathfinder:
 
         found = False
 
-        while not search_border.empty() or not found:
+        while not (search_border.empty() or found):
             current_node = search_border.get()
             if current_node == point_b:
                 found = True
                 break
-            for node in graph[current_node].point_neighbors:
+            for node, edge in graph[current_node].point_neighbors.items():
                 new_weight = (
                     weight[current_node]
-                    + graph[node].weight
+                    + edge
                     + Pathfinder.heuristic(graph[node], target_node)
                 )
                 if node not in weight or new_weight < weight[node]:
@@ -40,7 +43,7 @@ class Pathfinder:
                     visited[node] = current_node
 
         if not found:
-            achtung_print("No path found")
+            logging.warning("No path found")
             return list()
 
         current_node = point_b
@@ -54,6 +57,8 @@ class Pathfinder:
     @staticmethod
     def heuristic(point_a: Node, point_b: Node):
         # manhattan distance since we are using a grid
+        # Not as natural as euclid but screw you
+        # I ain't got time to calculate hundreds of sqrts
         return abs(point_a.x - point_a.y) + abs(point_b.y - point_b.y)
-        # shapely in-build euclidean (holy shit so much slower)
+        # shapely in-build euclidean (holy shit it's so much slower)
         # return point_a.point.distance(point_b.point)

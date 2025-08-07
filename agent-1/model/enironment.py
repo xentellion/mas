@@ -1,84 +1,89 @@
-import matplotlib.pyplot as plt
-import numpy as np
 import json
-import time
+import logging
+import numpy as np
 
+# from itertools import chain
+import matplotlib.pyplot as plt
 from shapely.geometry import Point, Polygon, MultiPolygon, LineString
 from shapely.ops import unary_union
 
-from node import Node
+from node import Node, RoughConnection, Graph
 from wall import Wall
+from extras import execution_timer
 from pathfinder import Pathfinder
-from aux import achtung_print
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    filename="py_log.log",
+    filemode="a+",
+    format="%(asctime)s:%(levelname)s:%(message)s",
+)
 
 
 class AreaRender:
     def __init__(self, step=1):
-        self.flats = self.load_walls()
         self.step = step
+        self.graph = Graph()
+        self.rough_graph = None
+        self.graph_edges = []
+        self.extra_connections = None
 
+        self.flats = self.load_walls()
+
+    @execution_timer("Load walls data")
     def load_walls(self, path="data/walls.json"):
         flats = []
         try:
-            with open(
-                path,  # I hate this hardode
-                "r",
-                encoding="UTF-8",
-            ) as f:
+            with open(path, "r", encoding="UTF-8") as f:
                 data = json.load(f)
-                for x in data:
+                for x in data["blocks"]:
                     try:
                         element = Wall(**x)
                     except (ValueError, NameError, TypeError) as e:
-                        achtung_print("Error loading JSON data", e)
+                        logging.error(f"JSON data cannot be loaded: {e}")
                         continue
                     flats.append(element)
+                self.extra_connections = [
+                    RoughConnection(**x) for x in data["connections"]
+                ]
         except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
-            achtung_print("Error loading JSON data", e)
+            logging.error(f"JSON data cannot be loaded: {e}")
             return
         return flats
 
     def render(self):
         fig, ax = plt.subplots(1, 1)
+        plt.connect("button_press_event", self.on_click)
         fig.suptitle("Airport")
 
         area = self.draw_walkable_area(ax)
         if self.flats is None:
             return
-        self.draw_map(ax, False)
+        self.draw_map(ax, True)
         if isinstance(area, Polygon):
-            points = self.get_nodes_coordinates(area)
-            self.construct_edges(area, points)
-            # self.draw_edges(ax)
+            points = [self.get_nodes_coordinates(area)]
         elif isinstance(area, MultiPolygon):
             points = [self.get_nodes_coordinates(a) for a in area.geoms]
-            for i in points:
-                self.construct_edges(area, i)
-                # self.draw_edges(ax)
-
-        # test
-        start_time = time.perf_counter()
+        else:
+            logging.error("Cannot create node grid")
+            return
+        self.construct_edges(area, points)
+        self.construct_rough_graph()
+        self.draw_edges(ax)
 
         path = []
-        path = Pathfinder.plot_path(self.graph, 12, 8750)
-        # path = Pathfinder.plot_path(self.graph, 44, 12)
+        # path = Pathfinder.plot_path(self.graph, 12, 8750)
+        # path = Pathfinder.plot_path(self.graph[0], 78, 22)
+        path = Pathfinder.plot_path(self.graph[0], 6, 21)
         # path = Pathfinder.plot_path(self.graph, 13, 71)
-
-        end_time = time.perf_counter()
-        print(f"Path found in {(end_time - start_time):.5f} seconds")
-
-        for i in path:
-            self.highlight_point(ax, i, show_numbers=False)
-        # animation = ArtistAnimation(
-        #     fig,
-        #     frames,  # кадры
-        #     interval=30,  # задержка между кадрами в мс
-        #     blit=True,
-        #     repeat=True,
-        # )
+        self.draw_path(ax, path)
+        # for i in path:
+        #     self.highlight_point(ax, i, show_numbers=False)
 
         plt.show()
 
+    @execution_timer("Draw map")
     def draw_map(self, ax, show_scale: bool = False):
         ax.set_aspect("equal")
         ax.xaxis.set_major_locator(plt.MultipleLocator(1))
@@ -87,7 +92,7 @@ class AreaRender:
         try:
             area = self.flats[0].borders.boundary
         except IndexError as e:
-            achtung_print("Map building error", e)
+            logging.error(f"Map building error: {e}")
             return
         for x in self.flats[1:]:
             area = area.union(x.borders.boundary)
@@ -100,6 +105,7 @@ class AreaRender:
             for label in ax.get_yticklabels():
                 label.set_visible(False)
 
+    @execution_timer("Draw walkable area")
     def draw_walkable_area(self, ax):
         if self.flats is None:
             return
@@ -134,63 +140,114 @@ class AreaRender:
         # Take list of nodes, convert to tuple of X's of Y's and draw on axis
         ax.scatter(*zip(*((point.x, point.y) for point in nodes)), color="black")
 
-    def construct_edges(self, area, nodes):
-        self.graph = {k: Node(v) for k, v in enumerate(nodes)}
-        self.graph_lines = []
-        nodes = tuple(self.graph.values())
+    @execution_timer("Building graph edges")
+    def construct_edges(self, area, graphs):
+        shift = 0
 
-        for idx, p in self.graph.items():
-            # check bottom and right connections
-            nearest_points = [
-                (i, pt)
-                for i, pt in enumerate(nodes[idx + 1 :], start=idx + 1)
-                if (pt.x - p.x == self.step and p.y == pt.y)
-                or (pt.y - p.y == self.step and pt.x == p.x)
-            ]
-            # save and optionally draw
-            if nearest_points:
-                # Filter out lines intersecting borders and transpose to indexes and points
-                transposed = tuple(
-                    zip(
-                        *filter(
-                            lambda z: not z[1].intersects(area.boundary),
-                            (
-                                (x, LineString([p.point, y.point]))
-                                for x, y in nearest_points
-                            ),
-                        )
+        for subgraph_id, sg in enumerate(graphs):
+            for node_id, node in enumerate(sg):
+                self.graph.set_node(subgraph_id, node_id + shift, Node(node, self.step))
+            shift += len(sg)
+
+        shift = 0
+
+        for sg in self.graph:
+            lines = []
+            for node_id in self.graph[sg]:
+                nearest_points = []
+                this_point = self.graph.get_node(node_id)
+                for i in range(node_id + 1 - shift, len(self.graph[sg]) + shift):
+                    near_point = self.graph.get_node(i)
+                    dx = near_point.x - this_point.x
+                    dy = near_point.y - this_point.y
+                    if dx > self.step or dy > self.step:
+                        continue
+                    if (dx == self.step and dy == 0) or (dy == self.step and dx == 0):
+                        nearest_points.append((i, near_point))
+                        if len(nearest_points) >= 2:
+                            break
+                if nearest_points:
+                    connected = filter(
+                        lambda z: not z[1].intersects(area.boundary),
+                        (
+                            (x, LineString([this_point.point, y.point]))
+                            for x, y in nearest_points
+                        ),
                     )
-                )
-                # Add indexes to correlating nodes
-                self.graph[idx].point_neighbors += transposed[0]
-                for node in transposed[0]:
-                    self.graph[node].point_neighbors += [idx]
-                self.graph_lines += list(transposed[1])
+                    transposed = list(zip(*connected))
+                    for node in transposed[0]:
+                        self.graph[sg][node_id].point_neighbors[node] = self.step
+                        self.graph[sg][node].point_neighbors[node_id] = self.step
+                    lines += transposed[1]
+            self.graph_edges.append(lines)
+            shift += len(self.graph[sg])
 
+    def construct_rough_graph(self):
+        rough_graph = {}
+        if not self.extra_connections:
+            logging.warning("No rough graph on the map")
+            return None
+        for x in self.extra_connections:
+            if x.start not in rough_graph:
+                rough_graph[x.start] = []
+            rough_graph[x.start].append((x.end,))
+        # self.rough_graph = {}
+        # active_points = tuple(chain(*self.extra_connections))
+        # for idx, subg in enumerate(self.graph):
+        #     nodes = filter(lambda x: x in subg, active_points)
+        #     for x in nodes:
+        #         self.rough_graph[idx] = subg[x]
+        # self.rough_graph[idx].point_neighbors =
+        # for connect in self.extra_connections:
+        #     if any(x in for x in connect)
+
+    @execution_timer("Draw coordinate grid")
     def draw_edges(self, ax):
-        for con in self.graph_lines:
-            ax.plot(*con.xy, color="#999999", linewidth=1)
+        for grid in self.graph_edges:
+            for con in grid:
+                ax.plot(*con.xy, color="#999999", linewidth=1)
+
+    @execution_timer("Draw found path")
+    def draw_path(self, ax, path):
+        if not path:
+            return
+        p1, p2 = (None, None), self.graph.get_node(path[0]).xy
+        for i in range(len(path) - 1):
+            p1 = self.graph.get_node(path[i + 1]).xy
+            p1, p2 = p2, p1
+            ax.plot(*zip(p1, p2), marker="o", color="blue", zorder=200)
 
     def highlight_point(self, ax, index, human_size=0.25, show_numbers=True):
-        circle = plt.Circle(
-            self.graph[index].point.xy, human_size, color="blue", zorder=10
-        )
+        target = self.graph.get_node(index)
+        if not target:
+            logging.warning("No point found")
+        circle = plt.Circle(target.point.xy, human_size, color="blue", zorder=10)
         if show_numbers:
             plt.text(
-                self.graph[index].x - human_size,
-                self.graph[index].y - human_size / 2,
+                target.x - human_size / 2,
+                target.y - human_size / 2,
                 str(index),
                 color="black",
                 zorder=100,
             )
         ax.add_patch(circle)
-        # ax.add_patch(text)
+        plt.show()
+
+    def on_click(self, event):
+        if event.dblclick:
+            x, y = event.xdata, event.ydata
+            for i in range(len(self.graph)):
+                node = self.graph.get_node(i)
+                if abs(x - node.x) < 1e-1 and abs(y - node.y) < 1e-1:
+                    self.highlight_point(event.inaxes, i)
+                    break
 
 
 # /////////////////////////////////////////////
 
 
 def main():
+    logging.info("\n--------------Initializing--------------")
     ren = AreaRender(step=0.5)
     ren.render()
 
