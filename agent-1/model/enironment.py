@@ -1,13 +1,14 @@
 import json
 import logging
 import numpy as np
+from copy import deepcopy
 
 # from itertools import chain
 import matplotlib.pyplot as plt
 from shapely.geometry import Point, Polygon, MultiPolygon, LineString
 from shapely.ops import unary_union
 
-from node import Node, RoughConnection, Graph
+from node import Node, Graph, RoughGraph, SubGraph
 from wall import Wall
 from extras import execution_timer
 from pathfinder import Pathfinder
@@ -44,9 +45,7 @@ class AreaRender:
                         logging.error(f"JSON data cannot be loaded: {e}")
                         continue
                     flats.append(element)
-                self.extra_connections = [
-                    RoughConnection(**x) for x in data["connections"]
-                ]
+                self.extra_connections = data["connections"]
         except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
             logging.error(f"JSON data cannot be loaded: {e}")
             return
@@ -75,11 +74,15 @@ class AreaRender:
         path = []
         # path = Pathfinder.plot_path(self.graph, 12, 8750)
         # path = Pathfinder.plot_path(self.graph[0], 78, 22)
-        path = Pathfinder.plot_path(self.graph[0], 6, 21)
-        # path = Pathfinder.plot_path(self.graph, 13, 71)
+        # path = Pathfinder.plot_path(self.graph, 6, 21)
+        # path = Pathfinder.plot_path(self.graph, 22, 71)
+        # path = Pathfinder.plot_path(self.graph, 0, 21)
+        # path = Pathfinder.plot_path(self.graph, 0, 77, self.rough_graph)
+        path = Pathfinder.plot_path(self.graph, 0, 294, self.rough_graph)
+        # path = Pathfinder.plot_path(self.graph, 77, 22, deepcopy(self.rough_graph))
+        # path = Pathfinder.plot_path(self.graph, 22, 95)
+
         self.draw_path(ax, path)
-        # for i in path:
-        #     self.highlight_point(ax, i, show_numbers=False)
 
         plt.show()
 
@@ -146,7 +149,9 @@ class AreaRender:
 
         for subgraph_id, sg in enumerate(graphs):
             for node_id, node in enumerate(sg):
-                self.graph.set_node(subgraph_id, node_id + shift, Node(node, self.step))
+                self.graph.set_node(
+                    subgraph_id, node_id + shift, Node(node, subgraph_id, self.step)
+                )
             shift += len(sg)
 
         shift = 0
@@ -182,24 +187,40 @@ class AreaRender:
             self.graph_edges.append(lines)
             shift += len(self.graph[sg])
 
+    @execution_timer("Building rough graph")
     def construct_rough_graph(self):
-        rough_graph = {}
+        rough_graph = RoughGraph()
+        rough_graph[0] = SubGraph()
         if not self.extra_connections:
-            logging.warning("No rough graph on the map")
+            logging.info("No rough graph on the map")
             return None
-        for x in self.extra_connections:
-            if x.start not in rough_graph:
-                rough_graph[x.start] = []
-            rough_graph[x.start].append((x.end,))
-        # self.rough_graph = {}
-        # active_points = tuple(chain(*self.extra_connections))
-        # for idx, subg in enumerate(self.graph):
-        #     nodes = filter(lambda x: x in subg, active_points)
-        #     for x in nodes:
-        #         self.rough_graph[idx] = subg[x]
-        # self.rough_graph[idx].point_neighbors =
-        # for connect in self.extra_connections:
-        #     if any(x in for x in connect)
+        for c in self.extra_connections:
+            for node in c:
+                # Fuck python constant linking
+                rough_graph[0][node] = deepcopy(self.graph.get_node(node))
+        # holy shit it is so bad
+        for c in self.extra_connections:
+            rough_graph.get_node(c[0]).point_neighbors = {c[1]: self.step}
+            rough_graph.get_node(c[1]).point_neighbors = {c[0]: self.step}
+        # Even worse
+        for idx in self.graph.subgraphs:
+            close_by = tuple(
+                filter(
+                    lambda z: rough_graph.get_node(z).subgraph == idx,
+                    (x for x in rough_graph[0]),
+                )
+            )
+            for node in close_by:
+                this_node = rough_graph.get_node(node)
+                rough_graph.get_node(node).point_neighbors.update(
+                    {
+                        x: this_node.point.distance(rough_graph.get_node(x).point)
+                        for x in close_by
+                        if x != node
+                    }
+                )
+
+        self.rough_graph = rough_graph
 
     @execution_timer("Draw coordinate grid")
     def draw_edges(self, ax):
@@ -215,7 +236,10 @@ class AreaRender:
         for i in range(len(path) - 1):
             p1 = self.graph.get_node(path[i + 1]).xy
             p1, p2 = p2, p1
-            ax.plot(*zip(p1, p2), marker="o", color="blue", zorder=200)
+            color = (
+                "b--" if abs(p1[0] - p2[0]) + abs(p1[1] - p2[1]) > self.step else "blue"
+            )
+            ax.plot(*zip(p1, p2), color, marker="o", zorder=200)
 
     def highlight_point(self, ax, index, human_size=0.25, show_numbers=True):
         target = self.graph.get_node(index)
@@ -248,7 +272,7 @@ class AreaRender:
 
 def main():
     logging.info("\n--------------Initializing--------------")
-    ren = AreaRender(step=0.5)
+    ren = AreaRender(step=0.25)
     ren.render()
 
 
