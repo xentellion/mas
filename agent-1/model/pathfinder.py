@@ -3,6 +3,12 @@ import logging
 from extras import execution_timer
 from node import Node, Graph, RoughGraph
 from queue import PriorityQueue
+from enum import Enum
+
+
+class HeuristicsDistance(Enum):
+    MANHATTAN = 0
+    EUCLID = 1
 
 
 class Pathfinder:
@@ -61,6 +67,7 @@ class Pathfinder:
         point_b: int,
         starting_node: Node,
         target_node: Node,
+        heuristic_distance: HeuristicsDistance = HeuristicsDistance.MANHATTAN,
     ):
         current_node = None
         weight = {point_a: 0}
@@ -80,7 +87,9 @@ class Pathfinder:
                 new_weight = (
                     weight[current_node]
                     + edge
-                    + Pathfinder.heuristic(graph.get_node(node), target_node)
+                    + Pathfinder.heuristic(
+                        graph.get_node(node), target_node, heuristic_distance
+                    )
                 )
                 if node not in weight or new_weight < weight[node]:
                     weight[node] = new_weight
@@ -100,10 +109,20 @@ class Pathfinder:
         return path
 
     @staticmethod
-    def heuristic(point_a: Node, point_b: Node):
-        # manhattan distance since we are using a grid
-        # Not as natural as euclid but screw you
-        # I ain't got time to calculate hundreds of sqrts
-        # return abs(point_a.x - point_a.y) + abs(point_b.y - point_b.y)
-        # shapely in-build euclidean (holy shit it's so much slower)
-        return point_a.point.distance(point_b.point)
+    def heuristic(
+        point_a: Node,
+        point_b: Node,
+        distance: HeuristicsDistance = HeuristicsDistance.MANHATTAN,
+    ):
+        dist = None
+        match distance:
+            case HeuristicsDistance.MANHATTAN:
+                # manhattan distance since we are using a grid
+                # Not as natural as euclid but screw you
+                # I ain't got time to calculate hundreds of sqrts
+                dist = abs(point_a.x - point_a.y) + abs(point_b.y - point_b.y)
+            case HeuristicsDistance.EUCLID:
+                # shapely in-build euclidean (holy shit it's so much slower)
+                dist = point_a.point.distance(point_b.point)
+
+        return dist

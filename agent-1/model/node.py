@@ -108,6 +108,12 @@ class Graph:
 
 class RoughGraph(Graph):
     def add_rough_node(self, node_id: int, node: Node):
+        """Create node and connect it to all nodes in subgraph
+
+        Args:
+            node_id (int): id
+            node (Node): node object
+        """
         self._subgraphs[0][node_id] = deepcopy(node)
         close_by = tuple(
             filter(

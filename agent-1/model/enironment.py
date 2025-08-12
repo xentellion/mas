@@ -70,6 +70,7 @@ class AreaRender:
         self.construct_edges(area, points)
         self.construct_rough_graph()
         self.draw_edges(ax)
+        # self.draw_rough_graph(ax)
 
         path = []
         # path = Pathfinder.plot_path(self.graph, 12, 8750)
@@ -227,6 +228,10 @@ class AreaRender:
         for grid in self.graph_edges:
             for con in grid:
                 ax.plot(*con.xy, color="#999999", linewidth=1)
+
+    def draw_rough_graph(self, ax):
+        for node in self.rough_graph[0]:
+            self.highlight_point(ax, node)
 
     @execution_timer("Draw found path")
     def draw_path(self, ax, path):
