@@ -66,6 +66,7 @@ class SubGraph:
 class Graph:
     def __init__(self, subgraph=None):
         self._subgraphs = {} if not subgraph else subgraph
+        self.edges = []
 
     @property
     def subgraphs(self):

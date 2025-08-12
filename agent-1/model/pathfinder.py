@@ -1,7 +1,11 @@
 import logging
+from copy import deepcopy
+
+from numpy import ceil
+from shapely import LineString, MultiPolygon, Point, Polygon
 
 from extras import execution_timer
-from node import Node, Graph, RoughGraph
+from node import Node, Graph, RoughGraph, SubGraph
 from queue import PriorityQueue
 from enum import Enum
 
@@ -124,5 +128,117 @@ class Pathfinder:
             case HeuristicsDistance.EUCLID:
                 # shapely in-build euclidean (holy shit it's so much slower)
                 dist = point_a.point.distance(point_b.point)
-
         return dist
+
+    @execution_timer("Create node grid")
+    @staticmethod
+    def create_node_grid(ax, flats, area):
+        if flats is None:
+            return
+        if isinstance(area, Polygon):
+            points = [Pathfinder.get_nodes_coordinates(area)]
+        elif isinstance(area, MultiPolygon):
+            points = [Pathfinder.get_nodes_coordinates(a) for a in area.geoms]
+        else:
+            logging.error("Cannot create node grid")
+            return
+        return points
+
+    @staticmethod
+    def get_nodes_coordinates(area: Polygon, step=0.25):
+        x_min, y_min, x_max, y_max = area.bounds
+        n_spacing_x = int(ceil((x_max - x_min) / step))  # number of points on X
+        n_spacing_y = int(ceil((y_max - y_min) / step))
+        points = (
+            Point(x_min + x * step, y_min + y * step)
+            for y in range(n_spacing_y)
+            for x in range(n_spacing_x)
+        )
+        return list(
+            filter(
+                lambda z: area.contains(z) and z.distance(area.boundary) > 1e-2,
+                points,
+            )
+        )
+
+    @staticmethod
+    def construct_edges(area, graphs, step=0.25):
+        graph = Graph()
+
+        shift = 0
+
+        for subgraph_id, sg in enumerate(graphs):
+            for node_id, node in enumerate(sg):
+                graph.set_node(
+                    subgraph_id, node_id + shift, Node(node, subgraph_id, step)
+                )
+            shift += len(sg)
+
+        shift = 0
+
+        for sg in graph:
+            lines = []
+            for node_id in graph[sg]:
+                nearest_points = []
+                this_point = graph.get_node(node_id)
+                for i in range(node_id + 1 - shift, len(graph[sg]) + shift):
+                    near_point = graph.get_node(i)
+                    dx = near_point.x - this_point.x
+                    dy = near_point.y - this_point.y
+                    if dx > step or dy > step:
+                        continue
+                    if (dx == step and dy == 0) or (dy == step and dx == 0):
+                        nearest_points.append((i, near_point))
+                        if len(nearest_points) >= 2:
+                            break
+                if nearest_points:
+                    connected = filter(
+                        lambda z: not z[1].intersects(area.boundary),
+                        (
+                            (x, LineString([this_point.point, y.point]))
+                            for x, y in nearest_points
+                        ),
+                    )
+                    transposed = list(zip(*connected))
+                    for node in transposed[0]:
+                        graph[sg][node_id].point_neighbors[node] = step
+                        graph[sg][node].point_neighbors[node_id] = step
+                    lines += transposed[1]
+            graph.edges.append(lines)
+            shift += len(graph[sg])
+        return graph
+
+    @execution_timer("Building rough graph")
+    def construct_rough_graph(graph, extra_connections, step=0.25):
+        rough_graph = RoughGraph()
+        rough_graph[0] = SubGraph()
+        if not extra_connections:
+            logging.info("No rough graph on the map")
+            return None
+        for c in extra_connections:
+            for node in c:
+                # Fuck python constant linking
+                rough_graph[0][node] = deepcopy(graph.get_node(node))
+        # holy shit it is so bad
+        for c in extra_connections:
+            rough_graph.get_node(c[0]).point_neighbors = {c[1]: step}
+            rough_graph.get_node(c[1]).point_neighbors = {c[0]: step}
+        # Even worse
+        for idx in graph.subgraphs:
+            close_by = tuple(
+                filter(
+                    lambda z: rough_graph.get_node(z).subgraph == idx,
+                    (x for x in rough_graph[0]),
+                )
+            )
+            for node in close_by:
+                this_node = rough_graph.get_node(node)
+                rough_graph.get_node(node).point_neighbors.update(
+                    {
+                        x: this_node.point.distance(rough_graph.get_node(x).point)
+                        for x in close_by
+                        if x != node
+                    }
+                )
+
+        return rough_graph
