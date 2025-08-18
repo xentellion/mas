@@ -1,15 +1,22 @@
 import json
 import logging
+
+# import asyncio
 from time import sleep
 
 # from itertools import chain
 import matplotlib.pyplot as plt
+
+from shapely.geometry import MultiPolygon
+
 from shapely.geometry import Polygon, MultiPolygon
 from shapely.ops import unary_union
 
-from wall import Wall
+from agent import Agent
+from agent_task import WalkingTask
 from extras import execution_timer
 from pathfinder import Pathfinder
+from wall import Wall
 
 
 logging.basicConfig(
@@ -40,7 +47,7 @@ class AreaRender:
                 data = json.load(f)
                 for x in data["blocks"]:
                     try:
-                        element = Wall(**x)
+                        element = Wall(**x, scale=data["scale"])
                     except (ValueError, NameError, TypeError) as e:
                         logging.error(f"JSON data cannot be loaded: {e}")
                         continue
@@ -60,8 +67,8 @@ class AreaRender:
 
         self.draw_map(self.ax, True)
 
-        nodes = Pathfinder.create_node_grid(self.ax, self.flats, area)
-        self.graph = Pathfinder.construct_edges(area, nodes)
+        nodes = Pathfinder.create_node_grid(self.ax, self.flats, area, 1)
+        self.graph = Pathfinder.construct_edges(area, nodes, 1)
         self.rough_graph = Pathfinder.construct_rough_graph(
             self.graph, self.extra_connections
         )
@@ -92,15 +99,11 @@ class AreaRender:
     def draw_walkable_area(self, ax):
         if self.flats is None:
             return
-        total_area = unary_union([x.borders for x in self.flats])
-        for x in self.flats[1:]:
-            total_area = total_area.difference(x.borders)
-
-        if isinstance(total_area, MultiPolygon):
-            for line in total_area.geoms:
-                ax.fill_between(*line.boundary.xy, color="green")
-        elif isinstance(total_area, Polygon):
-            ax.fill_between(*total_area.boundary.xy, color="green")
+        ax.plot(*self.flats[0].borders.exterior.xy, color="black")
+        total_area = MultiPolygon(x.borders for x in self.flats[1:])
+        for room in total_area.geoms:
+            ax.plot(*room.exterior.xy, color="black")
+            ax.fill_between(*room.boundary.xy, color="green")
         return total_area
 
     def draw_nodes(self, ax, nodes):
@@ -124,7 +127,7 @@ class AreaRender:
             color = (
                 "b--" if abs(p1[0] - p2[0]) + abs(p1[1] - p2[1]) > self.step else "blue"
             )
-            self.ax.plot(*zip(p1, p2), color, marker="o", zorder=200)
+            self.ax.plot(*zip(p1, p2), color, zorder=200)
 
     def highlight_point(self, ax, index, human_size=0.25, show_numbers=True):
         target = self.graph.get_node(index)
@@ -165,30 +168,53 @@ def main():
 
     ren.fig.canvas.draw()
     ren.fig.canvas.flush_events()
-    # ren.fig.canvas.draw()
     # TPS = 10
     sleep(1)
 
-    path = Pathfinder.plot_path(ren.graph, 0, 294, ren.rough_graph)
+    path = Pathfinder.plot_path(ren.graph, 1064, 59, ren.rough_graph)
+    path_1 = Pathfinder.plot_path(ren.graph, 228, 991, ren.rough_graph)
     ren.draw_path(path)
-    agent = plt.Circle(
-        ren.graph.get_node(path[0]).point.xy, 0.10, color="red", zorder=10000
+    ren.draw_path(path_1)
+
+    agent_1 = Agent(
+        plt.Circle(
+            ren.graph.get_node(path[0]).point.xy, 0.10, color="red", zorder=10000
+        ),
+        ren.graph,
     )
-    ren.ax.add_patch(agent)
+    agent_2 = Agent(
+        plt.Circle(
+            ren.graph.get_node(path_1[0]).point.xy, 0.10, color="red", zorder=10000
+        ),
+        ren.graph,
+    )
+    ren.ax.add_patch(agent_1.ui_object)
+    ren.ax.add_patch(agent_2.ui_object)
 
     ren.fig.canvas.draw()
     ren.fig.canvas.flush_events()
     sleep(1)
 
-    for i in path[1:]:
-        agent.set_center(ren.graph.get_node(i).point.xy)
+    agents = []
+
+    task = WalkingTask(path)
+    task2 = WalkingTask(path[::-1])
+    task_1 = WalkingTask(path_1)
+    task2_1 = WalkingTask(path_1[::-1])
+    agent_1.add_task(0, task)
+    agent_1.add_task(1, task2)
+    agent_2.add_task(0, task_1)
+    agent_2.add_task(1, task2_1)
+    agents.append(agent_1)
+    agents.append(agent_2)
+
+    while len(agents) > 0:
+        for a in agents:
+            a.tick()
+        agents = list(x for x in agents if not x.finished)
         ren.fig.canvas.draw()
         ren.fig.canvas.flush_events()
-        # sleep(0.01)
     plt.show(block=True)
-
-    # plt.show()
-    # plt.ioff()
 
 
 if __name__ == "__main__":

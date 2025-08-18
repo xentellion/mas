@@ -2,14 +2,15 @@ from shapely.geometry import Polygon
 
 
 class Wall:
-    def __init__(
-        self,
-        name,
-        area,
-        enclosed=True,
-    ):
+    def __init__(self, name, area, enclosed=True, scale=1):
         self.__name = name
-        area = [(element["x"], element["y"]) for element in area]
+        area = [
+            (
+                element["x"] * scale,
+                element["y"] * scale,
+            )
+            for element in area
+        ]
         if enclosed:
             area += [area[0]]
         self.__borders = Polygon(area)

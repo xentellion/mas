@@ -1,18 +1,24 @@
+# import asyncio
 import logging
 from copy import deepcopy
+from multiprocessing import Process, Manager
+from queue import PriorityQueue
+from enum import Enum
+
 
 from numpy import ceil
 from shapely import LineString, MultiPolygon, Point, Polygon
 
 from extras import execution_timer
 from node import Node, Graph, RoughGraph, SubGraph
-from queue import PriorityQueue
-from enum import Enum
 
 
 class HeuristicsDistance(Enum):
     MANHATTAN = 0
     EUCLID = 1
+
+
+SENTINEL = "SENTINEL"
 
 
 class Pathfinder:
@@ -132,13 +138,13 @@ class Pathfinder:
 
     @execution_timer("Create node grid")
     @staticmethod
-    def create_node_grid(ax, flats, area):
+    def create_node_grid(ax, flats, area, step=0.25):
         if flats is None:
             return
         if isinstance(area, Polygon):
-            points = [Pathfinder.get_nodes_coordinates(area)]
+            points = [Pathfinder.get_nodes_coordinates(area, step)]
         elif isinstance(area, MultiPolygon):
-            points = [Pathfinder.get_nodes_coordinates(a) for a in area.geoms]
+            points = [Pathfinder.get_nodes_coordinates(a, step) for a in area.geoms]
         else:
             logging.error("Cannot create node grid")
             return
@@ -162,50 +168,36 @@ class Pathfinder:
         )
 
     @staticmethod
-    def construct_edges(area, graphs, step=0.25):
+    @execution_timer("Connecting nodes")
+    def construct_edges(area, nodes_clusters, step=0.25):
         graph = Graph()
 
         shift = 0
 
-        for subgraph_id, sg in enumerate(graphs):
+        for subgraph_id, sg in enumerate(nodes_clusters):
             for node_id, node in enumerate(sg):
                 graph.set_node(
                     subgraph_id, node_id + shift, Node(node, subgraph_id, step)
                 )
             shift += len(sg)
-
-        shift = 0
-
-        for sg in graph:
-            lines = []
-            for node_id in graph[sg]:
-                nearest_points = []
-                this_point = graph.get_node(node_id)
-                for i in range(node_id + 1 - shift, len(graph[sg]) + shift):
-                    near_point = graph.get_node(i)
-                    dx = near_point.x - this_point.x
-                    dy = near_point.y - this_point.y
-                    if dx > step or dy > step:
-                        continue
-                    if (dx == step and dy == 0) or (dy == step and dx == 0):
-                        nearest_points.append((i, near_point))
-                        if len(nearest_points) >= 2:
-                            break
-                if nearest_points:
-                    connected = filter(
-                        lambda z: not z[1].intersects(area.boundary),
-                        (
-                            (x, LineString([this_point.point, y.point]))
-                            for x, y in nearest_points
-                        ),
-                    )
-                    transposed = list(zip(*connected))
-                    for node in transposed[0]:
-                        graph[sg][node_id].point_neighbors[node] = step
-                        graph[sg][node].point_neighbors[node_id] = step
-                    lines += transposed[1]
-            graph.edges.append(lines)
-            shift += len(graph[sg])
+        del node, sg, shift
+        edges = Manager().Queue()
+        processes = [
+            Process(
+                target=Pathfinder.process_subgraph, args=(area, sg, graph, step, edges)
+            )
+            for sg in graph
+        ]
+        for p in processes:
+            p.start()
+        for p in processes:
+            p.join()
+            for x in iter(edges.get, SENTINEL):
+                graph.edges.append(x[0])
+                for node in x[2]:
+                    for con in node["connections"]:
+                        graph[x[1]][node["id"]].point_neighbors[con] = step
+                        graph[x[1]][con].point_neighbors[node["id"]] = step
         return graph
 
     @execution_timer("Building rough graph")
@@ -242,3 +234,41 @@ class Pathfinder:
                 )
 
         return rough_graph
+
+    @staticmethod
+    def process_subgraph(area, sg, graph, step, result_queue):
+        lines = []
+        regraph = []
+        shift = sum(len(x) for x in graph[:sg])
+        for node_id in graph[sg]:
+            nearest_points = []
+            this_point = graph.get_node(node_id)
+            for i in range(node_id + 1 - shift, len(graph[sg]) + shift):
+                near_point = graph.get_node(i)
+                dx = near_point.x - this_point.x
+                dy = near_point.y - this_point.y
+                if dx > step or dy > step:
+                    continue
+                if (dx == step and dy == 0) or (dy == step and dx == 0):
+                    nearest_points.append((i, near_point))
+                    if len(nearest_points) >= 2:
+                        break
+            if nearest_points:
+                connected = filter(
+                    lambda z: not z[1].intersects(area.geoms[sg].boundary),
+                    (
+                        (x, LineString([this_point.point, y.point]))
+                        for x, y in nearest_points
+                    ),
+                )
+                transposed = list(zip(*connected))
+                if not transposed:
+                    continue
+                regraph.append({"id": node_id, "connections": transposed[0]})
+                # for node in transposed[0]:
+                #     graph[sg][node_id].point_neighbors[node] = step
+                #     graph[sg][node].point_neighbors[node_id] = step
+                lines += transposed[1]
+        result_queue.put((lines, sg, regraph))
+        result_queue.put(SENTINEL)
+        print(f"Area_{sg + 1} complete")

@@ -12,6 +12,7 @@ class Node:
         self.point_neighbors = {}
         self.transmission_point = None
         self.rough_graph = None
+        self.interactable = None
 
     @property
     def id(self):
@@ -36,6 +37,9 @@ class Node:
     @property
     def xy(self):
         return self.__x, self.__y
+
+    def interact(self, agent):
+        print(f"use node at {self.xy}")
 
 
 class SubGraph:
@@ -73,7 +77,11 @@ class Graph:
         return self._subgraphs
 
     def __getitem__(self, key):
-        return self._subgraphs[key]
+        if isinstance(key, slice):
+            start, stop, step = key.indices(len(self._subgraphs))
+            return [self._subgraphs[index] for index in range(start, stop, step)]
+        else:
+            return self._subgraphs[key]
 
     def __setitem__(self, key, value):
         if not isinstance(key, int):
