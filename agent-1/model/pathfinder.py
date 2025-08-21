@@ -11,6 +11,7 @@ from shapely import LineString, MultiPolygon, Point, Polygon
 
 from extras import execution_timer
 from node import Node, Graph, RoughGraph, SubGraph
+from wall import Wall
 
 
 class HeuristicsDistance(Enum):
@@ -25,7 +26,11 @@ class Pathfinder:
     @staticmethod
     @execution_timer("Path search")
     def plot_path(
-        graph: Graph, point_a: int, point_b: int, rough_graph: RoughGraph = None
+        graph: Graph,
+        point_a: int,
+        point_b: int,
+        rough_graph: RoughGraph = None,
+        heuristic=HeuristicsDistance.MANHATTAN,
     ):
         if point_a == point_b:
             logging.warn("Searching path for a same node")
@@ -47,7 +52,12 @@ class Pathfinder:
             rough_graph.add_rough_node(point_a, starting_node)
             rough_graph.add_rough_node(point_b, target_node)
             rough_path = Pathfinder.search_one_path(
-                rough_graph, point_a, point_b, starting_node, target_node
+                rough_graph,
+                point_a,
+                point_b,
+                starting_node,
+                target_node,
+                heuristic,
             )
             # return rough_path
             rough_path = [
@@ -62,7 +72,14 @@ class Pathfinder:
                     continue
                 s_n = graph.get_node(p[0])
                 e_n = graph.get_node(p[1])
-                path += Pathfinder.search_one_path(graph, p[0], p[1], s_n, e_n)
+                path += Pathfinder.search_one_path(
+                    graph,
+                    p[0],
+                    p[1],
+                    s_n,
+                    e_n,
+                    heuristic,
+                )
         else:
             path = Pathfinder.search_one_path(
                 graph, point_a, point_b, starting_node, target_node
@@ -138,9 +155,7 @@ class Pathfinder:
 
     @execution_timer("Create node grid")
     @staticmethod
-    def create_node_grid(ax, flats, area, step=0.25):
-        if flats is None:
-            return
+    def create_node_grid(ax, area, step=0.25):
         if isinstance(area, Polygon):
             points = [Pathfinder.get_nodes_coordinates(area, step)]
         elif isinstance(area, MultiPolygon):
@@ -200,7 +215,35 @@ class Pathfinder:
                         graph[x[1]][con].point_neighbors[node["id"]] = step
         return graph
 
+    @execution_timer("Placing interactables")
+    @staticmethod
+    def create_interactables(flats: list[Wall], graph):
+        mapping = {}
+        interactables = {}
+        for idx, room in enumerate(flats[1:]):
+            if not room.interactables:
+                continue
+            for i, inter in enumerate(room.interactables):
+                new_points = []
+                for point_type in (inter.inlet_point, inter.outlet_point):
+                    batch = []
+                    for p in point_type:
+                        pt = Node(p, idx)
+                        points = sorted(
+                            graph[idx].values(),
+                            key=lambda x: Pathfinder.heuristic(
+                                x[1], pt, HeuristicsDistance.EUCLID
+                            ),
+                        )
+                        mapping[points[0][0]] = inter.name
+                        batch.append(points[0])
+                    new_points.append(batch)
+                inter.reposition_points(*new_points)
+                interactables[inter.name] = inter
+        return mapping, interactables
+
     @execution_timer("Building rough graph")
+    @staticmethod
     def construct_rough_graph(graph, extra_connections, step=0.25):
         rough_graph = RoughGraph()
         rough_graph[0] = SubGraph()

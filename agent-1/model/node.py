@@ -63,6 +63,9 @@ class SubGraph:
         for item in self.__nodes.keys():
             yield item
 
+    def values(self):
+        return zip(self.__nodes.keys(), self.__nodes.values())
+
     def __len__(self):
         return len(self.__nodes)
 

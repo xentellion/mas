@@ -21,10 +21,12 @@
                     "y": 0
                 }
             ],
-            "enclosed": true
+            "walls": [],
+            "enclosed": true,
+            "interactables": null
         },
         {
-            "name": "area_1",
+            "name": "Exit Hall",
             "area": [
                 {
                     "x": 15,
@@ -83,10 +85,25 @@
                     "y": 1
                 }
             ],
-            "enclosed": true
+            "walls": [],
+            "enclosed": true,
+            "interactables": [
+                {
+                    "name": "Exit",
+                    "inlet_point": [
+                        [
+                            20,
+                            2
+                        ]
+                    ],
+                    "outlet_point": null,
+                    "area": null,
+                    "max_occupy": 1
+                }
+            ]
         },
         {
-            "name": "area_2",
+            "name": "Entrance Hall",
             "area": [
                 {
                     "x": 15,
@@ -125,10 +142,25 @@
                     "y": 0
                 }
             ],
-            "enclosed": true
+            "walls": [],
+            "enclosed": true,
+            "interactables": [
+                {
+                    "name": "Entrance",
+                    "inlet_point": [
+                        [
+                            14,
+                            0
+                        ]
+                    ],
+                    "outlet_point": null,
+                    "area": null,
+                    "max_occupy": 1
+                }
+            ]
         },
         {
-            "name": "area_3",
+            "name": "Ticket area",
             "area": [
                 {
                     "x": 6,
@@ -163,10 +195,25 @@
                     "y": 0
                 }
             ],
-            "enclosed": true
+            "walls": [
+                [
+                    10,
+                    0,
+                    10,
+                    1
+                ],
+                [
+                    7,
+                    1,
+                    12,
+                    1
+                ]
+            ],
+            "enclosed": true,
+            "interactables": null
         },
         {
-            "name": "area_4",
+            "name": "Inspection Leaving",
             "area": [
                 {
                     "x": 7,
@@ -185,10 +232,25 @@
                     "y": 4
                 }
             ],
-            "enclosed": true
+            "walls": [
+                [
+                    2,
+                    3,
+                    4,
+                    3
+                ],
+                [
+                    4,
+                    3.5,
+                    4,
+                    2.5
+                ]
+            ],
+            "enclosed": true,
+            "interactables": null
         },
         {
-            "name": "area_5",
+            "name": "Registrations",
             "area": [
                 {
                     "x": 1,
@@ -207,10 +269,19 @@
                     "y": 9
                 }
             ],
-            "enclosed": true
+            "walls": [
+                [
+                    1,
+                    7,
+                    6,
+                    7
+                ]
+            ],
+            "enclosed": true,
+            "interactables": null
         },
         {
-            "name": "area_6",
+            "name": "Customs leaving",
             "area": [
                 {
                     "x": 6,
@@ -237,10 +308,31 @@
                     "y": 11
                 }
             ],
-            "enclosed": true
+            "walls": [
+                [
+                    3,
+                    9,
+                    3,
+                    10
+                ],
+                [
+                    4,
+                    9,
+                    4,
+                    10
+                ],
+                [
+                    5,
+                    9,
+                    5,
+                    10
+                ]
+            ],
+            "enclosed": true,
+            "interactables": null
         },
         {
-            "name": "area_7",
+            "name": "Exit gate area",
             "area": [
                 {
                     "x": 2,
@@ -263,10 +355,25 @@
                     "y": 18
                 }
             ],
-            "enclosed": true
+            "walls": [],
+            "enclosed": true,
+            "interactables": [
+                {
+                    "name": "Gate_out",
+                    "inlet_point": [
+                        [
+                            4,
+                            18
+                        ]
+                    ],
+                    "outlet_point": null,
+                    "area": null,
+                    "max_occupy": 1
+                }
+            ]
         },
         {
-            "name": "area_8",
+            "name": "Toilet preflight man",
             "area": [
                 {
                     "x": 4,
@@ -285,10 +392,12 @@
                     "y": 12.5
                 }
             ],
-            "enclosed": true
+            "walls": [],
+            "enclosed": true,
+            "interactables": null
         },
         {
-            "name": "area_9",
+            "name": "Toilet preflight woman",
             "area": [
                 {
                     "x": 6,
@@ -307,10 +416,12 @@
                     "y": 14
                 }
             ],
-            "enclosed": true
+            "walls": [],
+            "enclosed": true,
+            "interactables": null
         },
         {
-            "name": "area_10",
+            "name": "Enter Gate area",
             "area": [
                 {
                     "x": 13,
@@ -329,10 +440,25 @@
                     "y": 16
                 }
             ],
-            "enclosed": true
+            "walls": [],
+            "enclosed": true,
+            "interactables": [
+                {
+                    "name": "Gate_in",
+                    "inlet_point": [
+                        [
+                            14.5,
+                            18
+                        ]
+                    ],
+                    "outlet_point": null,
+                    "area": null,
+                    "max_occupy": 1
+                }
+            ]
         },
         {
-            "name": "area_11",
+            "name": "Customs arriving",
             "area": [
                 {
                     "x": 13,
@@ -367,10 +493,43 @@
                     "y": 18
                 }
             ],
-            "enclosed": true
+            "walls": [
+                [
+                    11.5,
+                    18,
+                    11.5,
+                    16
+                ],
+                [
+                    12,
+                    12,
+                    12,
+                    10
+                ],
+                [
+                    13,
+                    11,
+                    13,
+                    12
+                ],
+                [
+                    14,
+                    11,
+                    14,
+                    12
+                ],
+                [
+                    15,
+                    11,
+                    15,
+                    12
+                ]
+            ],
+            "enclosed": true,
+            "interactables": null
         },
         {
-            "name": "area_12",
+            "name": "Luggage recieve",
             "area": [
                 {
                     "x": 16,
@@ -421,10 +580,12 @@
                     "y": 18
                 }
             ],
-            "enclosed": true
+            "walls": [],
+            "enclosed": true,
+            "interactables": null
         },
         {
-            "name": "area_13",
+            "name": "Toilet arriving man",
             "area": [
                 {
                     "x": 18,
@@ -443,10 +604,12 @@
                     "y": 9
                 }
             ],
-            "enclosed": true
+            "walls": [],
+            "enclosed": true,
+            "interactables": null
         },
         {
-            "name": "area_14",
+            "name": "Toilet arriving woman",
             "area": [
                 {
                     "x": 20,
@@ -465,10 +628,12 @@
                     "y": 8
                 }
             ],
-            "enclosed": true
+            "walls": [],
+            "enclosed": true,
+            "interactables": null
         },
         {
-            "name": "area_15",
+            "name": "Inspection arriving",
             "area": [
                 {
                     "x": 12,
@@ -495,87 +660,63 @@
                     "y": 6
                 }
             ],
-            "enclosed": true
-        },
-        {
-            "name": "area_16",
-            "area": [
-                {
-                    "x": 10,
-                    "y": 5
-                },
-                {
-                    "x": 10,
-                    "y": 6
-                },
-                {
-                    "x": 12,
-                    "y": 6
-                },
-                {
-                    "x": 12,
-                    "y": 5
-                }
-            ],
-            "enclosed": true
+            "walls": [],
+            "enclosed": true,
+            "interactables": null
         }
     ],
     "connections": [
         [
-            961,
-            956
+            911,
+            906
         ],
         [
-            924,
-            1027
+            976,
+            873
         ],
         [
-            904,
-            1007
+            956,
+            853
         ],
         [
-            834,
-            820
+            790,
+            777
         ],
         [
-            593,
-            576
+            566,
+            549
         ],
         [
-            557,
-            423
+            405,
+            531
         ],
         [
-            504,
-            1816
+            261,
+            390
         ],
         [
-            408,
-            261
+            211,
+            1665
         ],
         [
-            1731,
-            211
+            1725,
+            1361
         ],
         [
-            1791,
-            1427
+            1370,
+            1643
         ],
         [
-            1436,
-            1709
+            1360,
+            1658
         ],
         [
-            1426,
-            1724
+            1057,
+            1402
         ],
         [
-            1084,
-            1447
-        ],
-        [
-            1040,
-            1334
+            990,
+            1269
         ]
     ]
 }

@@ -1,16 +1,15 @@
+# import asyncio
 import json
 import logging
-
-# import asyncio
 from time import sleep
 
 # from itertools import chain
 import matplotlib.pyplot as plt
-
-from shapely.geometry import MultiPolygon
-
-from shapely.geometry import Polygon, MultiPolygon
-from shapely.ops import unary_union
+from matplotlib.path import Path
+from matplotlib.patches import PathPatch
+from matplotlib.collections import PatchCollection
+import numpy as np
+from shapely.geometry import Polygon, MultiPolygon, LineString
 
 from agent import Agent
 from agent_task import WalkingTask
@@ -40,14 +39,14 @@ class AreaRender:
         self.edges_drawn = []
 
     @execution_timer("Load walls data")
-    def load_walls(self, path="data/walls.json"):
+    def load_walls(self, path="data/walls.json") -> list[Wall]:
         flats = []
         try:
             with open(path, "r", encoding="UTF-8") as f:
                 data = json.load(f)
                 for x in data["blocks"]:
                     try:
-                        element = Wall(**x, scale=data["scale"])
+                        element = Wall(**x, scale=data["scale"], step=self.step)
                     except (ValueError, NameError, TypeError) as e:
                         logging.error(f"JSON data cannot be loaded: {e}")
                         continue
@@ -63,21 +62,26 @@ class AreaRender:
         plt.connect("button_press_event", self.on_click)
         self.fig.suptitle("Airport")
 
-        area = self.draw_walkable_area(self.ax)
+        area = self.draw_walkable_area()
+        self.draw_map(True)
 
-        self.draw_map(self.ax, True)
-
-        nodes = Pathfinder.create_node_grid(self.ax, self.flats, area, 1)
-        self.graph = Pathfinder.construct_edges(area, nodes, 1)
+        if not self.flats:
+            return
+        nodes = Pathfinder.create_node_grid(self.ax, area, self.step)
+        self.graph = Pathfinder.construct_edges(area, nodes, self.step)
+        self.interactables_mapping, self.interactables = (
+            Pathfinder.create_interactables(self.flats, self.graph)
+        )
+        self.draw_intercatables()
         self.rough_graph = Pathfinder.construct_rough_graph(
             self.graph, self.extra_connections
         )
 
     @execution_timer("Draw map")
-    def draw_map(self, ax, show_scale: bool = False):
-        ax.set_aspect("equal")
-        ax.xaxis.set_major_locator(plt.MultipleLocator(1))
-        ax.yaxis.set_major_locator(plt.MultipleLocator(1))
+    def draw_map(self, show_scale: bool = False):
+        self.ax.set_aspect("equal")
+        self.ax.xaxis.set_major_locator(plt.MultipleLocator(1))
+        self.ax.yaxis.set_major_locator(plt.MultipleLocator(1))
 
         try:
             area = self.flats[0].borders.boundary
@@ -87,24 +91,65 @@ class AreaRender:
         for x in self.flats[1:]:
             area = area.union(x.borders.boundary)
         for line in area.geoms:
-            ax.plot(*line.xy, color="black", linewidth=1)
+            self.ax.plot(*line.xy, color="black", linewidth=1)
 
         if not show_scale:
-            for label in ax.get_xticklabels():
+            for label in self.ax.get_xticklabels():
                 label.set_visible(False)
-            for label in ax.get_yticklabels():
+            for label in self.ax.get_yticklabels():
                 label.set_visible(False)
 
     @execution_timer("Draw walkable area")
-    def draw_walkable_area(self, ax):
+    def draw_walkable_area(self):
         if self.flats is None:
             return
-        ax.plot(*self.flats[0].borders.exterior.xy, color="black")
-        total_area = MultiPolygon(x.borders for x in self.flats[1:])
-        for room in total_area.geoms:
-            ax.plot(*room.exterior.xy, color="black")
-            ax.fill_between(*room.boundary.xy, color="green")
-        return total_area
+        self.ax.plot(*self.flats[0].borders.exterior.xy, color="black")
+        # total_area = MultiPolygon(x.borders for x in self.flats[1:])
+        total_area = []
+        for room in self.flats[1:]:
+            walls = room.borders
+
+            for w in room.walls:
+                bounds = list(w.bounds)
+                if bounds[0] == bounds[2]:
+                    bounds += (
+                        bounds[2] + 0.1,
+                        bounds[3],
+                        bounds[0] + 0.1,
+                        bounds[1],
+                    )
+                else:
+                    bounds += (
+                        bounds[2],
+                        bounds[3] + 0.1,
+                        bounds[0],
+                        bounds[1] + 0.1,
+                    )
+                thin_wall = Polygon(
+                    tuple(bounds[i : i + 2] for i in range(0, len(bounds), 2))
+                )
+                walls = walls.difference(thin_wall)
+            total_area.append(walls)
+            self.plot_polygon(walls, facecolor="green", edgecolor="black")
+
+        return MultiPolygon(total_area)
+
+    def plot_polygon(self, poly, **kwargs):
+        path = Path.make_compound_path(
+            Path(np.asarray(poly.exterior.coords)[:, :2]),
+            *[Path(np.asarray(ring.coords)[:, :2]) for ring in poly.interiors],
+        )
+
+        patch = PathPatch(path, **kwargs)
+        collection = PatchCollection([patch], **kwargs)
+
+        self.ax.add_collection(collection, autolim=True)
+        self.ax.autoscale_view()
+        return collection
+
+    def draw_intercatables(self):
+        for room in self.interactables.values():
+            self.ax.plot(*room.area.exterior.xy, color="red")
 
     def draw_nodes(self, ax, nodes):
         # Take list of nodes, convert to tuple of X's of Y's and draw on axis
@@ -115,6 +160,14 @@ class AreaRender:
         for grid in self.graph.edges:
             for con in grid:
                 self.ax.plot(*con.xy, color="#999999", linewidth=1)
+
+    @execution_timer("Draw transitions")
+    def draw_transitions(self):
+        for line in self.extra_connections:
+            con = LineString(
+                [self.graph.get_node(line[0]).xy, self.graph.get_node(line[1]).xy]
+            )
+            self.ax.plot(*con.xy, "--", color="#999999", linewidth=1)
 
     @execution_timer("Draw found path")
     def draw_path(self, path):
@@ -161,38 +214,54 @@ class AreaRender:
 def main():
     logging.info("\n--------------Initializing--------------")
     plt.ion()
-    ren = AreaRender(step=0.25)
+    step = 1
+    ren = AreaRender(step)
     ren.create_area()
     ren.draw_edges()
-    plt.show()
+    ren.draw_transitions()
 
-    ren.fig.canvas.draw()
-    ren.fig.canvas.flush_events()
-    # TPS = 10
     sleep(1)
 
-    path = Pathfinder.plot_path(ren.graph, 1064, 59, ren.rough_graph)
-    path_1 = Pathfinder.plot_path(ren.graph, 228, 991, ren.rough_graph)
+    path = Pathfinder.plot_path(
+        ren.graph,
+        ren.interactables["Gate_in"].inlet_point[0],
+        ren.interactables["Exit"].inlet_point[0],
+        ren.rough_graph,
+    )
+    path_1 = Pathfinder.plot_path(
+        ren.graph,
+        ren.interactables["Entrance"].inlet_point[0],
+        ren.interactables["Gate_out"].inlet_point[0],
+        ren.rough_graph,
+    )
     ren.draw_path(path)
     ren.draw_path(path_1)
 
     agent_1 = Agent(
         plt.Circle(
-            ren.graph.get_node(path[0]).point.xy, 0.10, color="red", zorder=10000
+            ren.graph.get_node(path[0]).point.xy,
+            step * 0.4,
+            color="red",
+            zorder=10000,
         ),
         ren.graph,
     )
     agent_2 = Agent(
         plt.Circle(
-            ren.graph.get_node(path_1[0]).point.xy, 0.10, color="red", zorder=10000
+            ren.graph.get_node(path_1[0]).point.xy,
+            step * 0.4,
+            color="red",
+            zorder=10000,
         ),
         ren.graph,
     )
     ren.ax.add_patch(agent_1.ui_object)
     ren.ax.add_patch(agent_2.ui_object)
 
+    plt.show()
     ren.fig.canvas.draw()
     ren.fig.canvas.flush_events()
+
     sleep(1)
 
     agents = []
