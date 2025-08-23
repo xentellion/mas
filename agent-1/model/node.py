@@ -4,15 +4,17 @@ from copy import deepcopy
 
 class Node:
     def __init__(self, point: Point, subgraph: int, weight: int = 1):
-        self.__node_id = None
+        # self.__node_id = None
         self.__subgraph = subgraph
+
         self.__point = point
         self.__x = self.__point.x
         self.__y = self.__point.y
         self.point_neighbors = {}
-        self.transmission_point = None
         self.rough_graph = None
-        self.interactable = None
+
+        self.transmission_point = None
+        self.pass_through = False
 
     @property
     def id(self):
@@ -63,8 +65,8 @@ class SubGraph:
         for item in self.__nodes.keys():
             yield item
 
-    def values(self):
-        return zip(self.__nodes.keys(), self.__nodes.values())
+    def items(self):
+        return self.__nodes.items()
 
     def __len__(self):
         return len(self.__nodes)
@@ -74,6 +76,7 @@ class Graph:
     def __init__(self, subgraph=None):
         self._subgraphs = {} if not subgraph else subgraph
         self.edges = []
+        self.rough_graph = None
 
     @property
     def subgraphs(self):

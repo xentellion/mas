@@ -1,3 +1,6 @@
+import logging
+import random
+
 from shapely import Point, Polygon
 from shapely.ops import unary_union
 
@@ -67,3 +70,44 @@ class Interactable:
                 Polygon(((x_m, y_m), (x_m, y_l), (x_l, y_l), (x_l, y_m), (x_m, y_m)))
             )
         self.__area = unary_union(areas)
+
+    def tick(self):
+        pass
+
+
+class Entrance(Interactable):
+    def __init__(self, name, inlet_point, outlet_point, area, max_occupy, scale, step):
+        super().__init__(name, inlet_point, outlet_point, area, max_occupy, scale, step)
+        self.__storage = []
+
+    def add_new_agent(self, agent):
+        agent.position = random.choice(self.outlet_point)
+        self.__storage.append(agent)
+
+    def spawn_agent(self, graph):
+        if self.__storage:
+            agent = self.__storage.pop()
+            agent.ui_object.set_visible(True)
+            try:
+                agent.ui_object.set_center(
+                    graph.get_node(agent.current_task.path.pop()).point.xy
+                )
+            except ValueError:
+                agent.ui_object.set_center(
+                    graph.get_node(random.choice(self.outlet_point)).point.xy
+                )
+                logging.info("Starting with not a walking task")
+            return agent
+        return None
+
+
+class Exit(Interactable):
+    pass
+
+
+class Gate(Entrance):
+    pass
+
+    # def action(self, agent: Agent):
+
+    # def remove_agent(self2):

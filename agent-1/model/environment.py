@@ -13,7 +13,8 @@ from shapely.geometry import Polygon, MultiPolygon, LineString
 
 from agent import Agent
 from agent_task import WalkingTask
-from extras import execution_timer
+from extras import execution_timer, State
+import interactable
 from pathfinder import Pathfinder
 from wall import Wall
 
@@ -31,7 +32,6 @@ class AreaRender:
         self.step = step
 
         self.graph = None
-        self.rough_graph = None
         self.extra_connections = None
 
         self.flats = self.load_walls()
@@ -73,7 +73,7 @@ class AreaRender:
             Pathfinder.create_interactables(self.flats, self.graph)
         )
         self.draw_intercatables()
-        self.rough_graph = Pathfinder.construct_rough_graph(
+        self.graph.rough_graph = Pathfinder.construct_rough_graph(
             self.graph, self.extra_connections
         )
 
@@ -221,66 +221,40 @@ def main():
     ren.draw_transitions()
 
     sleep(1)
-
-    path = Pathfinder.plot_path(
-        ren.graph,
-        ren.interactables["Gate_in"].inlet_point[0],
-        ren.interactables["Exit"].inlet_point[0],
-        ren.rough_graph,
-    )
-    path_1 = Pathfinder.plot_path(
-        ren.graph,
-        ren.interactables["Entrance"].inlet_point[0],
-        ren.interactables["Gate_out"].inlet_point[0],
-        ren.rough_graph,
-    )
-    ren.draw_path(path)
-    ren.draw_path(path_1)
-
-    agent_1 = Agent(
-        plt.Circle(
-            ren.graph.get_node(path[0]).point.xy,
-            step * 0.4,
-            color="red",
-            zorder=10000,
-        ),
-        ren.graph,
-    )
-    agent_2 = Agent(
-        plt.Circle(
-            ren.graph.get_node(path_1[0]).point.xy,
-            step * 0.4,
-            color="red",
-            zorder=10000,
-        ),
-        ren.graph,
-    )
-    ren.ax.add_patch(agent_1.ui_object)
-    ren.ax.add_patch(agent_2.ui_object)
-
-    plt.show()
-    ren.fig.canvas.draw()
-    ren.fig.canvas.flush_events()
-
-    sleep(1)
-
     agents = []
 
-    task = WalkingTask(path)
-    task2 = WalkingTask(path[::-1])
-    task_1 = WalkingTask(path_1)
-    task2_1 = WalkingTask(path_1[::-1])
-    agent_1.add_task(0, task)
-    agent_1.add_task(1, task2)
-    agent_2.add_task(0, task_1)
-    agent_2.add_task(1, task2_1)
-    agents.append(agent_1)
-    agents.append(agent_2)
+    plt.show()
+    sleep(1)
 
-    while len(agents) > 0:
+    agent_1 = Agent(step)
+    agent_2 = Agent(step)
+
+    ren.interactables["Gate_in"].add_new_agent(agent_1)
+    ren.interactables["Entrance"].add_new_agent(agent_2)
+
+    agent_1.add_task(WalkingTask("Exit", ren.interactables), ren.graph)
+    agent_1.add_task(WalkingTask("Exit", ren.interactables), ren.graph)
+
+    agent_2.add_task(WalkingTask("Gate_out", ren.interactables), ren.graph)
+    agent_2.add_task(WalkingTask("Entrance", ren.interactables), ren.graph)
+
+    while True:
         for a in agents:
-            a.tick()
-        agents = list(x for x in agents if not x.finished)
+            new_pos = a.tick(ren.graph)
+            if new_pos is not None:
+                a.ui_object.set_center(ren.graph.get_node(new_pos).point.xy)
+            if a.state is State.COMPLETE:
+                a.ui_object.remove()
+                agents.remove(a)
+        for i, point in ren.interactables.items():
+            if isinstance(point, interactable.Entrance) or isinstance(
+                point, interactable.Gate
+            ):
+                new_ag = point.spawn_agent(ren.graph)
+                if new_ag is not None:
+                    ren.ax.add_patch(new_ag.ui_object)
+                    agents.append(new_ag)
+            point.tick()
         ren.fig.canvas.draw()
         ren.fig.canvas.flush_events()
     plt.show(block=True)

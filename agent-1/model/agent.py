@@ -1,43 +1,68 @@
-from queue import PriorityQueue
+# from queue import PriorityQueue
+from collections import deque
+
+import matplotlib.pyplot as plt
+
 from agent_task import AgentTask, WalkingTask, InteractingTask
-from node import Graph
+from extras import State
+
+# from node import Graph
 
 
 class Agent:
-    def __init__(self, ui_object, graph: Graph):
-        self.ui_object = ui_object
+    def __init__(self, step):
+        self.ui_object = plt.Circle(
+            (0, 0),
+            step * 0.4,
+            color="red",
+            zorder=10000,
+            visible=False,
+        )
         self.target = None
-        self.tasks = PriorityQueue()
-
+        self.tasks = deque()
         self.__current_task: AgentTask = None
+        self.position = None
+        self.state = State.IDLE
 
-        self.graph = graph
+    @property
+    def current_task(self):
+        return self.__current_task
 
-        self.finished = False
+    def add_task(self, task: AgentTask, graph, priority=False):
+        if self.__current_task is None:
+            task.setup(self.position, graph)
+            self.__current_task = task
 
-    def add_task(self, priotity: int, task: AgentTask):
-        self.tasks.put((priotity, task))
+        elif priority:
+            self.tasks.appendleft(self.__current_task)
+            self.__current_task = task
+        else:
+            self.tasks.append(task)
 
     def clear_tasks(self):
-        self.tasks = PriorityQueue()
+        self.tasks = deque()
 
-    def tick(self):
+    def tick(self, graph):
         if self.__current_task is None:
-            if self.tasks.empty():
+            if len(self.tasks) == 0:
                 # print("Nothing to do")
-                self.finished = True
-                self.ui_object.remove()
+                self.state = State.COMPLETE
                 return
-            self.__current_task = self.tasks.get()[1]
+            self.__current_task = self.tasks.pop()
+            self.__current_task.setup(self.position, graph)
+            self.state = self.__current_task.state
 
         status = self.__current_task.tick()
 
         if status is None:
             self.__current_task = None
-            return
+            return None
 
+        if isinstance(status, int):
+            self.position = status
         if isinstance(self.__current_task, WalkingTask):
-            self.ui_object.set_center(self.graph.get_node(status).point.xy)
+            if self.state != State.WALKING:
+                self.state = State.WALKING
         elif isinstance(self.__current_task, InteractingTask):
-            # self.__current_task.tick()
             pass
+        return status

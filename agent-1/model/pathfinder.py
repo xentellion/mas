@@ -29,7 +29,6 @@ class Pathfinder:
         graph: Graph,
         point_a: int,
         point_b: int,
-        rough_graph: RoughGraph = None,
         heuristic=HeuristicsDistance.MANHATTAN,
     ):
         if point_a == point_b:
@@ -46,13 +45,13 @@ class Pathfinder:
             return list()
         # if different - consult rough_graph
         if target_node.subgraph != starting_node.subgraph:
-            if not rough_graph:
+            if not graph.rough_graph:
                 logging.error("No rough graph to navigate")
                 return list()
-            rough_graph.add_rough_node(point_a, starting_node)
-            rough_graph.add_rough_node(point_b, target_node)
+            graph.rough_graph.add_rough_node(point_a, starting_node)
+            graph.rough_graph.add_rough_node(point_b, target_node)
             rough_path = Pathfinder.search_one_path(
-                rough_graph,
+                graph.rough_graph,
                 point_a,
                 point_b,
                 starting_node,
@@ -230,7 +229,7 @@ class Pathfinder:
                     for p in point_type:
                         pt = Node(p, idx)
                         points = sorted(
-                            graph[idx].values(),
+                            graph[idx].items(),
                             key=lambda x: Pathfinder.heuristic(
                                 x[1], pt, HeuristicsDistance.EUCLID
                             ),

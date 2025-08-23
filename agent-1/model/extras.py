@@ -1,6 +1,15 @@
 import logging
 import time
 
+from enum import Enum
+
+
+class State(Enum):
+    IDLE = 0
+    WALKING = 1
+    PERFORMING = 2
+    COMPLETE = 3
+
 
 def execution_timer(msg: str = "Task"):
     def outer_wrapper(func):

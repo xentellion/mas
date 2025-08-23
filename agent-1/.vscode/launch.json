@@ -6,7 +6,7 @@
             "type": "debugpy",
             "request": "launch",
             "python": "${workspaceFolder}/venv-agent/bin/python",
-            "program": "${workspaceFolder}/model/enironment.py",
+            "program": "${workspaceFolder}/model/environment.py",
             "console": "integratedTerminal"
         }
     ]
