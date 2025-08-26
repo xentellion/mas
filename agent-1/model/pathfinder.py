@@ -5,13 +5,13 @@ from multiprocessing import Process, Manager
 from queue import PriorityQueue
 from enum import Enum
 
-
 from numpy import ceil
 from shapely import LineString, MultiPolygon, Point, Polygon
 
 from extras import execution_timer
 from node import Node, Graph, RoughGraph, SubGraph
-from wall import Wall
+
+# from wall import Wall
 
 
 class HeuristicsDistance(Enum):
@@ -216,7 +216,7 @@ class Pathfinder:
 
     @execution_timer("Placing interactables")
     @staticmethod
-    def create_interactables(flats: list[Wall], graph):
+    def create_interactables(flats, graph):
         mapping = {}
         interactables = {}
         for idx, room in enumerate(flats[1:]):

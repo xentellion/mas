@@ -7,9 +7,13 @@ from pathfinder import Pathfinder
 
 class AgentTask:
     state = None
+    priority = False
 
     def tick(self):
         raise NotImplementedError("Tick action not implemented")
+
+    def setup(self, *args, **kwargs):
+        pass
 
 
 class WalkingTask(AgentTask):
@@ -40,3 +44,19 @@ class InteractingTask(AgentTask):
         if self.time <= 0:
             return None
         self.time -= 1
+
+
+class CompletionTask(AgentTask):
+    def __init__(self):
+        self.state = State.COMPLETE
+
+    def tick(self):
+        pass
+
+
+class WaitingTask(AgentTask):
+    def __init__(self):
+        self.state = State.IDLE
+
+    def tick(self):
+        pass

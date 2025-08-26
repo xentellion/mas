@@ -1,7 +1,8 @@
 import logging
 
-from shapely.geometry import Polygon, LineString  # , Point
-from interactable import Interactable, Entrance, Exit, Gate
+from shapely.geometry import Polygon, LineString
+
+import interactable
 
 
 class Wall:
@@ -29,13 +30,13 @@ class Wall:
                 itr = None
                 match i["name"].split("_")[0].lower():
                     case "entrance":
-                        itr = Entrance(**i, scale=scale, step=step)
+                        itr = interactable.Entrance(**i, scale=scale, step=step)
                     case "exit":
-                        itr = Exit(**i, scale=scale, step=step)
+                        itr = interactable.Exit(**i, scale=scale, step=step)
                     case "gate":
-                        itr = Gate(**i, scale=scale, step=step)
+                        itr = interactable.Gate(**i, scale=scale, step=step)
                     case _:
-                        itr = Interactable(**i, scale=scale, step=step)
+                        itr = interactable.Interactable(**i, scale=scale, step=step)
                         logging.warning("Unidentified interactable")
                 self.__interactables.append(itr)
 

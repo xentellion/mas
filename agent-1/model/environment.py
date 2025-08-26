@@ -12,10 +12,10 @@ import numpy as np
 from shapely.geometry import Polygon, MultiPolygon, LineString
 
 from agent import Agent
-from agent_task import WalkingTask
 from extras import execution_timer, State
 import interactable
 from pathfinder import Pathfinder
+from plane import Plane
 from wall import Wall
 
 
@@ -226,35 +226,42 @@ def main():
     plt.show()
     sleep(1)
 
-    agent_1 = Agent(step)
-    agent_2 = Agent(step)
+    agent_1 = Agent("agent_1", step)
+    agent_2 = Agent("agent_2", step)
 
-    ren.interactables["Gate_in"].add_new_agent(agent_1)
-    ren.interactables["Entrance"].add_new_agent(agent_2)
+    plane_1 = Plane("arriver", "1", 1, None)
+    plane_2 = Plane("departer", "2", 1, None)
 
-    agent_1.add_task(WalkingTask("Exit", ren.interactables), ren.graph)
-    agent_1.add_task(WalkingTask("Exit", ren.interactables), ren.graph)
+    ren.interactables["Gate_in"].add_arriving_plane(plane_1, [agent_1])
+    ren.interactables["Gate_out"].add_departing_plane(plane_2)
 
-    agent_2.add_task(WalkingTask("Gate_out", ren.interactables), ren.graph)
-    agent_2.add_task(WalkingTask("Entrance", ren.interactables), ren.graph)
+    ren.interactables["Entrance"].add_new_agent(agent_2, ren.graph)
 
     while True:
         for a in agents:
-            new_pos = a.tick(ren.graph)
-            if new_pos is not None:
-                a.ui_object.set_center(ren.graph.get_node(new_pos).point.xy)
             if a.state is State.COMPLETE:
-                a.ui_object.remove()
+                a.remove_token()
                 agents.remove(a)
+            new_pos = a.tick(ren.graph, ren.interactables)
+            if new_pos is not None:
+                a.move(ren.graph.get_node(new_pos).point.xy, new_pos)
+            else:
+                if a.position not in ren.interactables_mapping:
+                    continue
+                inter = ren.interactables[ren.interactables_mapping[a.position]]
+                a.add_task(
+                    inter.interact(a),
+                    ren.graph,
+                )
+                pass
         for i, point in ren.interactables.items():
             if isinstance(point, interactable.Entrance) or isinstance(
                 point, interactable.Gate
             ):
-                new_ag = point.spawn_agent(ren.graph)
+                new_ag = point.spawn_agent(ren.graph, ren.interactables)
                 if new_ag is not None:
                     ren.ax.add_patch(new_ag.ui_object)
                     agents.append(new_ag)
-            point.tick()
         ren.fig.canvas.draw()
         ren.fig.canvas.flush_events()
     plt.show(block=True)

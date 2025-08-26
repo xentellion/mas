@@ -4,6 +4,8 @@ import random
 from shapely import Point, Polygon
 from shapely.ops import unary_union
 
+import agent_task
+
 
 class Interactable:
     def __init__(self, name, inlet_point, outlet_point, area, max_occupy, scale, step):
@@ -21,6 +23,8 @@ class Interactable:
 
         self.max_occupy = max_occupy
         self.current_occupy = 0
+
+        self._task = None
 
     @property
     def inlet_point(self):
@@ -71,43 +75,73 @@ class Interactable:
             )
         self.__area = unary_union(areas)
 
-    def tick(self):
-        pass
+    def interact(self, agent):
+        return self._task
 
 
 class Entrance(Interactable):
-    def __init__(self, name, inlet_point, outlet_point, area, max_occupy, scale, step):
-        super().__init__(name, inlet_point, outlet_point, area, max_occupy, scale, step)
-        self.__storage = []
+    _storage = []
 
-    def add_new_agent(self, agent):
-        agent.position = random.choice(self.outlet_point)
-        self.__storage.append(agent)
+    def add_new_agent(self, agent, graph):
+        node = random.choice(self.outlet_point)
+        agent.move(graph.get_node(node).point.xy, node)
+        self._storage.append(agent)
 
-    def spawn_agent(self, graph):
-        if self.__storage:
-            agent = self.__storage.pop()
-            agent.ui_object.set_visible(True)
-            try:
-                agent.ui_object.set_center(
-                    graph.get_node(agent.current_task.path.pop()).point.xy
-                )
-            except ValueError:
-                agent.ui_object.set_center(
-                    graph.get_node(random.choice(self.outlet_point)).point.xy
-                )
-                logging.info("Starting with not a walking task")
+    def spawn_agent(self, graph, interactables):
+        if self._storage:
+            agent = self._storage.pop()
+            agent.position = random.choice(self.outlet_point)
+            agent.set_visible()
+            agent.request_task(graph, interactables)
             return agent
         return None
 
 
 class Exit(Interactable):
-    pass
+    def __init__(self, name, inlet_point, outlet_point, area, max_occupy, scale, step):
+        super().__init__(name, inlet_point, outlet_point, area, max_occupy, scale, step)
+        self._task = agent_task.CompletionTask()
+
+    # def interact(self):
+    #     return self.__task
 
 
 class Gate(Entrance):
-    pass
+    def __init__(self, name, inlet_point, outlet_point, area, max_occupy, scale, step):
+        super().__init__(name, inlet_point, outlet_point, area, max_occupy, scale, step)
+        self.__releasing_passengers = None
+        self.plane = None
 
-    # def action(self, agent: Agent):
+    def interact(self, agent):
+        if not self.plane:
+            return None
+        if self.__releasing_passengers is False:
+            self._storage.append(agent)
+            if len(self._storage) >= self.plane.volume:
+                logging.warning(f"Plane {self.plane.board_number} is full")
+                self.__releasing_passengers = None
+            return agent_task.CompletionTask()
+        elif self.__releasing_passengers is True:
+            return agent_task.WaitingTask()
 
-    # def remove_agent(self2):
+    def add_arriving_plane(self, plane, agents: list):
+        self._storage = agents
+        self.__releasing_passengers = True
+        self.plane = plane
+
+    def add_departing_plane(self, plane):
+        self.__releasing_passengers = False
+        self.plane = plane
+
+    def spawn_agent(self, *args, **kwargs):
+        if not self.__releasing_passengers:
+            return None
+        if self.plane is not None and not self._storage:
+            logging.warning(f"Plane {self.plane.board_number} is empty")
+            self.plane = None
+            # return None
+        return super().spawn_agent(*args, **kwargs)
+
+    def depart(self):
+        self._storage = []
+        self.is_plane_attached = False
