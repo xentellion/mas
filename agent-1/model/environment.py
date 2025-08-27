@@ -9,13 +9,16 @@ from matplotlib.path import Path
 from matplotlib.patches import PathPatch
 from matplotlib.collections import PatchCollection
 import numpy as np
+from pydantic import ValidationError
 from shapely.geometry import Polygon, MultiPolygon, LineString
 
 from agent import Agent
+import agent_task
 from extras import execution_timer, State
 import interactable
 from pathfinder import Pathfinder
 from plane import Plane
+from prompts import Prompts
 from wall import Wall
 
 
@@ -56,6 +59,14 @@ class AreaRender:
             logging.error(f"JSON data cannot be loaded: {e}")
             return
         return flats
+
+    def load_prompts(self, path="data/prompt.json") -> Prompts:
+        with open(path, "r", encoding="UTF-8") as f:
+            try:
+                return Prompts.model_validate(json.load(f))
+            except ValidationError:
+                logging.error("Failed to load and validate prompts")
+                return None
 
     def create_area(self):
         self.fig, self.ax = plt.subplots(1, 1)
@@ -213,9 +224,11 @@ class AreaRender:
 
 def main():
     logging.info("\n--------------Initializing--------------")
+
     plt.ion()
     step = 1
     ren = AreaRender(step)
+    prompts = ren.load_prompts()
     ren.create_area()
     ren.draw_edges()
     ren.draw_transitions()
@@ -226,16 +239,16 @@ def main():
     plt.show()
     sleep(1)
 
-    agent_1 = Agent("agent_1", step)
-    agent_2 = Agent("agent_2", step)
+    agent_1 = Agent("agent_1", step, prompts.prompt_arriving)
+    agent_2 = Agent("agent_2", step, prompts.prompt_departing)
 
     plane_1 = Plane("arriver", "1", 1, None)
     plane_2 = Plane("departer", "2", 1, None)
 
-    ren.interactables["Gate_in"].add_arriving_plane(plane_1, [agent_1])
-    ren.interactables["Gate_out"].add_departing_plane(plane_2)
+    ren.interactables["Gate_2"].add_arriving_plane(plane_1, [agent_1])
+    ren.interactables["Gate_1"].add_departing_plane(plane_2)
 
-    ren.interactables["Entrance"].add_new_agent(agent_2, ren.graph)
+    ren.interactables["Entrance"].add_new_agent(agent_2, ren.graph, "2")
 
     while True:
         for a in agents:
@@ -244,10 +257,14 @@ def main():
                 agents.remove(a)
             new_pos = a.tick(ren.graph, ren.interactables)
             if new_pos is not None:
+                if isinstance(new_pos, bool):
+                    continue
                 a.move(ren.graph.get_node(new_pos).point.xy, new_pos)
             else:
                 if a.position not in ren.interactables_mapping:
                     continue
+                elif isinstance(a.current_task, agent_task.InteractingTask):
+                    a.request_task(ren.graph, ren.interactables)
                 inter = ren.interactables[ren.interactables_mapping[a.position]]
                 a.add_task(
                     inter.interact(a),

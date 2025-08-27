@@ -1,4 +1,5 @@
 import logging
+import os
 
 # from queue import PriorityQueue
 from collections import deque
@@ -9,12 +10,13 @@ import requests
 
 import agent_task
 from extras import State
+from plane import Plane
 
 # from node import Graph
 
 
 class Agent:
-    def __init__(self, name, step):
+    def __init__(self, name, step, prompt: str):
         self.id = uuid.uuid4()
         self.name = name
         self.__ui_object = plt.Circle(
@@ -29,6 +31,9 @@ class Agent:
         self.position = None
         self.state = State.IDLE
 
+        self.__prompt = prompt
+        self.status = []
+
     @property
     def current_task(self):
         return self.__current_task
@@ -39,12 +44,12 @@ class Agent:
 
     def tick(self, graph, interactables):
         if self.__current_task is None:
-            res = self.change_task(graph)
-            if res is None:
+            if not self.tasks:
                 self.request_task(graph, interactables)
-                return
+            self.change_task(graph)
         status = self.__current_task.tick()
         if status is None:
+            self.__current_task = None
             self.change_task(graph)
             return None
         return status
@@ -53,18 +58,19 @@ class Agent:
         if self.__current_task is not None:
             self.tasks.appendleft(self.__current_task)
             self.__current_task = None
-        # insert propmt request to LLM based on agent state
-        # %TODO remove temporary hardcoded data
-        if self.name == "agent_1":
-            t_1 = agent_task.WalkingTask("Exit", interactables)
-            # t_1.setup(self.position, graph)
-            self.add_task(t_1, graph)
-        elif self.name == "agent_2":
-            t_1 = agent_task.WalkingTask("Gate_out", interactables)
-            # t_1.setup(self.position, graph)
-            self.add_task(t_1, graph)
-
-        # this shit ^
+        try:
+            prompt = self.__prompt.format(" ".join(self.status))
+            path = requests.post(
+                os.getenv("LLM"),
+                params={"prompt": prompt},
+            ).json()["response"]
+        except Exception as e:
+            logging.error(e)
+            path = None
+        print(prompt, self.name, path)
+        task = agent_task.WalkingTask(path, interactables)
+        task.setup(self.position, graph)
+        self.add_task(task, graph)
 
     def add_task(self, task: agent_task.AgentTask, graph):
         if task is None:
@@ -82,18 +88,14 @@ class Agent:
 
     def change_task(self, graph):
         if not self.tasks:
-            return None
+            return
         self.__current_task = self.tasks.popleft()
-        if self.__current_task is None:
-            return None
         self.state = self.__current_task.state
         self.__ui_object.set_visible(True)
         if isinstance(self.__current_task, agent_task.WalkingTask):
             self.__current_task.setup(self.position, graph)
-        if isinstance(self.__current_task, agent_task.WaitingTask):
-            # self.__current_task.setup(self.position, graph)
+        elif isinstance(self.__current_task, agent_task.WaitingTask):
             self.__ui_object.set_visible(False)
-        return True
 
     def move(self, point: tuple[int], index):
         self.position = index

@@ -3,6 +3,7 @@
         "--max-line-length=120"
     ],
     "flake8.severity" : {
-        "E203" : "Hint"
+        "E203" : "Hint",
+        "E402" : "Hint"
     }
 }

@@ -1,0 +1,44 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name":"Gigachat debug",
+            "type":"debugpy",
+            "request":"launch",
+            "module":"uvicorn",
+            "python": "${workspaceFolder}/gigachat-service/venv-gigachat/bin/python",
+            "cwd" : "${workspaceFolder}/gigachat-service",
+            "args": [
+                "app.main:app",
+                "--reload",
+                "--host", 
+                "0.0.0.0",
+            ],
+            "jinja":true,
+            "env": {
+                "CHROMA":"0.0.0.0"
+            }
+        },
+        {
+            "name":"ChromaDB Debug",
+            "type":"debugpy",
+            "request":"launch",
+            "python": "${workspaceFolder}/chromadb-service/venv-chroma/bin/python",
+            "program":"${workspaceFolder}/chromadb-service/app/main.py",
+            "console":"integratedTerminal",
+            "cwd" : "${workspaceFolder}/chromadb-service"
+        },
+        {
+            "name": "Agent Debug",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "${workspaceFolder}/agent-1/venv-agent/bin/python",
+            "program": "${workspaceFolder}/agent-1/model/environment.py",
+            "console": "integratedTerminal",
+            "cwd" : "${workspaceFolder}/agent-1",
+            "env": {
+                "LLM":"http://localhost:8000"
+            }
+        }
+    ]
+}

@@ -156,6 +156,18 @@
                     "outlet_point": null,
                     "area": null,
                     "max_occupy": 1
+                },
+                {
+                    "name": "Security_Checkpoint_entrance",
+                    "inlet_point": [
+                        [
+                            12,
+                            2.5
+                        ]
+                    ],
+                    "outlet_point": null,
+                    "area": null,
+                    "max_occupy": 1
                 }
             ]
         },
@@ -278,7 +290,20 @@
                 ]
             ],
             "enclosed": true,
-            "interactables": null
+            "interactables": [
+                {
+                    "name": "Registration_Desk_1",
+                    "inlet_point": [
+                        [
+                            6,
+                            7
+                        ]
+                    ],
+                    "outlet_point": null,
+                    "area": null,
+                    "max_occupy": 1
+                }
+            ]
         },
         {
             "name": "Customs leaving",
@@ -359,7 +384,7 @@
             "enclosed": true,
             "interactables": [
                 {
-                    "name": "Gate_out",
+                    "name": "Gate_1",
                     "inlet_point": [
                         [
                             4,
@@ -444,7 +469,7 @@
             "enclosed": true,
             "interactables": [
                 {
-                    "name": "Gate_in",
+                    "name": "Gate_2",
                     "inlet_point": [
                         [
                             14.5,
@@ -582,7 +607,20 @@
             ],
             "walls": [],
             "enclosed": true,
-            "interactables": null
+            "interactables": [
+                {
+                    "name": "Baggage_Reclaim",
+                    "inlet_point": [
+                        [
+                            18,
+                            18
+                        ]
+                    ],
+                    "outlet_point": null,
+                    "area": null,
+                    "max_occupy": 1
+                }
+            ]
         },
         {
             "name": "Toilet arriving man",
@@ -662,7 +700,20 @@
             ],
             "walls": [],
             "enclosed": true,
-            "interactables": null
+            "interactables": [
+                {
+                    "name": "Security_Checkpoint_exit",
+                    "inlet_point": [
+                        [
+                            15,
+                            9
+                        ]
+                    ],
+                    "outlet_point": null,
+                    "area": null,
+                    "max_occupy": 1
+                }
+            ]
         }
     ],
     "connections": [

@@ -35,6 +35,10 @@ class Wall:
                         itr = interactable.Exit(**i, scale=scale, step=step)
                     case "gate":
                         itr = interactable.Gate(**i, scale=scale, step=step)
+                    case "security":
+                        itr = interactable.SecurityCheckpoint(**i, scale=scale, step=step)
+                    case "baggage":
+                        itr = interactable.BaggageReclaim(**i, scale=scale, step=step)
                     case _:
                         itr = interactable.Interactable(**i, scale=scale, step=step)
                         logging.warning("Unidentified interactable")

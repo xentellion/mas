@@ -82,16 +82,22 @@ class Interactable:
 class Entrance(Interactable):
     _storage = []
 
-    def add_new_agent(self, agent, graph):
+    def add_new_agent(self, agent, graph, ticket_number=None):
         node = random.choice(self.outlet_point)
         agent.move(graph.get_node(node).point.xy, node)
+        if ticket_number is not None:
+            agent.status.append(f"У тебя есть билет на борт {ticket_number}.")
+        else:
+            agent.status.append("У тебя нет билета.")
         self._storage.append(agent)
 
-    def spawn_agent(self, graph, interactables):
+    def spawn_agent(self, graph, interactables, starting_status=None):
         if self._storage:
             agent = self._storage.pop()
             agent.position = random.choice(self.outlet_point)
             agent.set_visible()
+            if starting_status is not None:
+                agent.status.append(starting_status)
             agent.request_task(graph, interactables)
             return agent
         return None
@@ -136,12 +142,35 @@ class Gate(Entrance):
     def spawn_agent(self, *args, **kwargs):
         if not self.__releasing_passengers:
             return None
-        if self.plane is not None and not self._storage:
-            logging.warning(f"Plane {self.plane.board_number} is empty")
-            self.plane = None
-            # return None
-        return super().spawn_agent(*args, **kwargs)
+        if self.plane is not None:
+            if not self._storage:
+                logging.warning(f"Plane {self.plane.board_number} is empty")
+                self.plane = None
+                return None
+            else:
+                status = f"Ты только что сошел c рейса {self.plane.board_number}."
+                return super().spawn_agent(starting_status=status, *args, **kwargs)
 
     def depart(self):
         self._storage = []
         self.is_plane_attached = False
+
+class SecurityCheckpoint(Interactable):
+    def __init__(self, name, inlet_point, outlet_point, area, max_occupy, scale, step):
+        super().__init__(name, inlet_point, outlet_point, area, max_occupy, scale, step)
+        self._task = agent_task.InteractingTask(10)
+        self.status = "Ты уже прошел досмотр на входе."
+
+    def interact(self, agent):
+        agent.status.append(self.status)
+        return self._task
+
+class BaggageReclaim(Interactable):
+    def __init__(self, name, inlet_point, outlet_point, area, max_occupy, scale, step):
+        super().__init__(name, inlet_point, outlet_point, area, max_occupy, scale, step)
+        self._task = agent_task.InteractingTask(10)
+        self.status = "Ты получил свой багаж"
+
+    def interact(self, agent):
+        agent.status.append(self.status)
+        return self._task
