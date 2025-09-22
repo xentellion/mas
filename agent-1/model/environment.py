@@ -74,7 +74,7 @@ class AreaRender:
         self.fig.suptitle("Airport")
 
         area = self.draw_walkable_area()
-        self.draw_map(True)
+        self.draw_map()
 
         if not self.flats:
             return
@@ -83,7 +83,6 @@ class AreaRender:
         self.interactables_mapping, self.interactables = (
             Pathfinder.create_interactables(self.flats, self.graph)
         )
-        self.draw_intercatables()
         self.graph.rough_graph = Pathfinder.construct_rough_graph(
             self.graph, self.extra_connections
         )
@@ -230,6 +229,8 @@ def main():
     ren = AreaRender(step)
     prompts = ren.load_prompts()
     ren.create_area()
+    ren.draw_intercatables()
+
     ren.draw_edges()
     ren.draw_transitions()
 
@@ -271,6 +272,10 @@ def main():
                     ren.graph,
                 )
                 pass
+            if a.state == State.WALKING and a.current_task:
+                if isinstance(a.current_task, agent_task.WalkingTask):
+                    ren.draw_path(a.current_task.path)
+
         for i, point in ren.interactables.items():
             if isinstance(point, interactable.Entrance) or isinstance(
                 point, interactable.Gate

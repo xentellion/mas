@@ -155,6 +155,7 @@ class Gate(Entrance):
         self._storage = []
         self.is_plane_attached = False
 
+
 class SecurityCheckpoint(Interactable):
     def __init__(self, name, inlet_point, outlet_point, area, max_occupy, scale, step):
         super().__init__(name, inlet_point, outlet_point, area, max_occupy, scale, step)
@@ -164,6 +165,7 @@ class SecurityCheckpoint(Interactable):
     def interact(self, agent):
         agent.status.append(self.status)
         return self._task
+
 
 class BaggageReclaim(Interactable):
     def __init__(self, name, inlet_point, outlet_point, area, max_occupy, scale, step):

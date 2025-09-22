@@ -82,7 +82,7 @@ class Pathfinder:
         else:
             path = Pathfinder.search_one_path(
                 graph, point_a, point_b, starting_node, target_node
-            )
+            )[::-1]
         logging.info(f"Found path in {len(path)} steps")
         return path
 

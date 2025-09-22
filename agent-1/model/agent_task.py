@@ -18,7 +18,11 @@ class AgentTask:
 
 class WalkingTask(AgentTask):
     def __init__(self, dest: str, interactables):
-        self.dest = random.choice(interactables[dest].outlet_point) if dest is not None else None
+        self.dest = (
+            random.choice(interactables[dest].outlet_point)
+            if dest is not None
+            else None
+        )
         self.path = None
         self.state = State.WALKING
 
@@ -44,7 +48,6 @@ class InteractingTask(AgentTask):
     def tick(self):
         if self.time <= 0:
             self.time = self.__max_time
-            print("done")
             return None
         self.time -= 1
         return True

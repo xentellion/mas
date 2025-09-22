@@ -10,7 +10,8 @@ import requests
 
 import agent_task
 from extras import State
-from plane import Plane
+
+# from plane import Plane
 
 # from node import Graph
 
@@ -67,7 +68,7 @@ class Agent:
         except Exception as e:
             logging.error(e)
             path = None
-        print(prompt, self.name, path)
+        print(f"{self.name} -> {path}")
         task = agent_task.WalkingTask(path, interactables)
         task.setup(self.position, graph)
         self.add_task(task, graph)
