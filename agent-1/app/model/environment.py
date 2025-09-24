@@ -1,33 +1,26 @@
 # import asyncio
+import os
 import json
 import logging
-from time import sleep
+import pickle
 
 # from itertools import chain
+
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
 from matplotlib.patches import PathPatch
 from matplotlib.collections import PatchCollection
-import numpy as np
 from pydantic import ValidationError
 from shapely.geometry import Polygon, MultiPolygon, LineString
 
-from agent import Agent
-import agent_task
-from extras import execution_timer, State
-import interactable
-from pathfinder import Pathfinder
-from plane import Plane
-from prompts import Prompts
-from wall import Wall
+from model.pathfinder import Pathfinder
+from model.prompts import Prompts
+from model.wall import Wall
+from model.extras import execution_timer
+from model.graph import Graph
 
-
-logging.basicConfig(
-    level=logging.INFO,
-    filename="py_log.log",
-    filemode="a+",
-    format="%(asctime)s:%(levelname)s:%(message)s",
-)
+GRAPH_PATH = "data/graph.bin"
 
 
 class AreaRender:
@@ -40,6 +33,8 @@ class AreaRender:
         self.flats = self.load_walls()
 
         self.edges_drawn = []
+        self.fig, self.ax = plt.subplots(1, 1)
+        self.interactables_mapping, self.interactables = None, None
 
     @execution_timer("Load walls data")
     def load_walls(self, path="data/walls.json") -> list[Wall]:
@@ -48,15 +43,14 @@ class AreaRender:
             with open(path, "r", encoding="UTF-8") as f:
                 data = json.load(f)
                 for x in data["blocks"]:
-                    try:
-                        element = Wall(**x, scale=data["scale"], step=self.step)
-                    except (ValueError, NameError, TypeError) as e:
-                        logging.error(f"JSON data cannot be loaded: {e}")
-                        continue
+                    element = Wall(**x, scale=data["scale"], step=self.step)
                     flats.append(element)
                 self.extra_connections = data["connections"]
         except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
-            logging.error(f"JSON data cannot be loaded: {e}")
+            logging.error("JSON data cannot be loaded: %s", e)
+            return
+        except (ValueError, NameError, TypeError) as e:
+            logging.error("JSON data cannot be loaded: %s", e)
             return
         return flats
 
@@ -68,8 +62,17 @@ class AreaRender:
                 logging.error("Failed to load and validate prompts")
                 return None
 
-    def create_area(self):
-        self.fig, self.ax = plt.subplots(1, 1)
+    def load_graph(self, path: str) -> Graph:
+        with open(path, "rb") as f:
+            return pickle.load(f)
+
+    def save_graph(self, path: str):
+        with open(path, "wb") as f:
+            pickle.dump(self.graph, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def create_area(self, path: str = None):
+        if path is not None:
+            return
         plt.connect("button_press_event", self.on_click)
         self.fig.suptitle("Airport")
 
@@ -78,8 +81,13 @@ class AreaRender:
 
         if not self.flats:
             return
-        nodes = Pathfinder.create_node_grid(self.ax, area, self.step)
-        self.graph = Pathfinder.construct_edges(area, nodes, self.step)
+        nodes = Pathfinder.create_node_grid(area, self.step)
+        if not os.path.isfile(GRAPH_PATH):
+            self.graph = Pathfinder.construct_edges(area, nodes, self.step)
+            self.save_graph(GRAPH_PATH)
+        else:
+            self.graph = self.load_graph(GRAPH_PATH)
+
         self.interactables_mapping, self.interactables = (
             Pathfinder.create_interactables(self.flats, self.graph)
         )
@@ -96,7 +104,7 @@ class AreaRender:
         try:
             area = self.flats[0].borders.boundary
         except IndexError as e:
-            logging.error(f"Map building error: {e}")
+            logging.error("Map building error: %s", e)
             return
         for x in self.flats[1:]:
             area = area.union(x.borders.boundary)
@@ -216,78 +224,3 @@ class AreaRender:
                 if abs(x - node.x) < 1e-1 and abs(y - node.y) < 1e-1:
                     self.highlight_point(event.inaxes, i)
                     break
-
-
-# /////////////////////////////////////////////
-
-
-def main():
-    logging.info("\n--------------Initializing--------------")
-
-    plt.ion()
-    step = 1
-    ren = AreaRender(step)
-    prompts = ren.load_prompts()
-    ren.create_area()
-    ren.draw_intercatables()
-
-    ren.draw_edges()
-    ren.draw_transitions()
-
-    sleep(1)
-    agents = []
-
-    plt.show()
-    sleep(1)
-
-    agent_1 = Agent("agent_1", step, prompts.prompt_arriving)
-    agent_2 = Agent("agent_2", step, prompts.prompt_departing)
-
-    plane_1 = Plane("arriver", "1", 1, None)
-    plane_2 = Plane("departer", "2", 1, None)
-
-    ren.interactables["Gate_2"].add_arriving_plane(plane_1, [agent_1])
-    ren.interactables["Gate_1"].add_departing_plane(plane_2)
-
-    ren.interactables["Entrance"].add_new_agent(agent_2, ren.graph, "2")
-
-    while True:
-        for a in agents:
-            if a.state is State.COMPLETE:
-                a.remove_token()
-                agents.remove(a)
-            new_pos = a.tick(ren.graph, ren.interactables)
-            if new_pos is not None:
-                if isinstance(new_pos, bool):
-                    continue
-                a.move(ren.graph.get_node(new_pos).point.xy, new_pos)
-            else:
-                if a.position not in ren.interactables_mapping:
-                    continue
-                elif isinstance(a.current_task, agent_task.InteractingTask):
-                    a.request_task(ren.graph, ren.interactables)
-                inter = ren.interactables[ren.interactables_mapping[a.position]]
-                a.add_task(
-                    inter.interact(a),
-                    ren.graph,
-                )
-                pass
-            if a.state == State.WALKING and a.current_task:
-                if isinstance(a.current_task, agent_task.WalkingTask):
-                    ren.draw_path(a.current_task.path)
-
-        for i, point in ren.interactables.items():
-            if isinstance(point, interactable.Entrance) or isinstance(
-                point, interactable.Gate
-            ):
-                new_ag = point.spawn_agent(ren.graph, ren.interactables)
-                if new_ag is not None:
-                    ren.ax.add_patch(new_ag.ui_object)
-                    agents.append(new_ag)
-        ren.fig.canvas.draw()
-        ren.fig.canvas.flush_events()
-    plt.show(block=True)
-
-
-if __name__ == "__main__":
-    main()

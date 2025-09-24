@@ -2,7 +2,7 @@ import logging
 
 from shapely.geometry import Polygon, LineString
 
-import interactable
+from model import interactable
 
 
 class Wall:
@@ -10,7 +10,6 @@ class Wall:
         self, name, area, walls, interactables, enclosed=True, scale=1, step=1
     ):
         self.__name = name
-        self.__scale = scale
         area = [
             (
                 element["x"] * scale,
@@ -36,7 +35,9 @@ class Wall:
                     case "gate":
                         itr = interactable.Gate(**i, scale=scale, step=step)
                     case "security":
-                        itr = interactable.SecurityCheckpoint(**i, scale=scale, step=step)
+                        itr = interactable.SecurityCheckpoint(
+                            **i, scale=scale, step=step
+                        )
                     case "baggage":
                         itr = interactable.BaggageReclaim(**i, scale=scale, step=step)
                     case _:

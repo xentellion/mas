@@ -1,0 +1,106 @@
+"""Contains all the possible necessary actions for agents"""
+
+import logging
+import random
+from abc import ABC, abstractmethod
+
+from model.extras import State
+from model.graph import Graph
+from model.pathfinder import Pathfinder
+
+
+class AgentTask(ABC):
+    """Generic task"""
+
+    def __init__(self):
+        self.state = None
+        self.priority = False
+
+    @abstractmethod
+    def tick(self):
+        """Performs actions on each simulation tick
+
+        Raises:
+            NotImplementedError: NotImplementedError
+        """
+        raise NotImplementedError
+
+
+class WalkingTask(AgentTask):
+    """Creates the path for the agent to the final point; exoires on reaching it
+
+    Args:
+        dest (str): name of the point for the agent to walk to
+        interactables (dict[str, Interactable]): list of possible interactive points
+    """
+
+    def __init__(self, dest: str, interactables):
+        super().__init__()
+        self.dest = (
+            random.choice(interactables[dest].outlet_point)
+            if dest is not None
+            else None
+        )
+        self.path = None
+        self.state = State.WALKING
+
+    def setup(self, source: int, graph: Graph):
+        """Rebuilds path based on agent location
+
+        Args:
+            source (int): id of target node
+            graph (Graph): walkable graph
+        """
+        self.path = Pathfinder.plot_path(
+            graph,
+            source,
+            self.dest,
+        )
+
+    def tick(self):
+        if not self.path:
+            return None
+        return self.path.pop(0)
+
+
+class InteractingTask(AgentTask):
+    """Task to occupy the point for set amount of time
+
+    Args:
+        time (int): time in tics
+    """
+
+    def __init__(self, time: int):
+        super().__init__()
+        self.__max_time = time
+        self.time = time
+        self.state = State.PERFORMING
+
+    def tick(self):
+        if self.time <= 0:
+            self.time = self.__max_time
+            return None
+        self.time -= 1
+        return True
+
+
+class BoardedTask(AgentTask):
+    """Task for agent to board and await flight or cancellation"""
+
+    def __init__(self):
+        super().__init__()
+        self.state = State.PERFORMING
+
+    def tick(self):
+        pass
+
+
+class CompletionTask(AgentTask):
+    """Final task, given to agent on reaching exit or on plane departing"""
+
+    def __init__(self):
+        super().__init__()
+        self.state = State.COMPLETE
+
+    def tick(self):
+        logging.info("Agent done")

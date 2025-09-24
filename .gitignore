@@ -5,6 +5,8 @@ access_token.json
 # template service
 micro-template/
 
+#binaires
+graph.bin
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

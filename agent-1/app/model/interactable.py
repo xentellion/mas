@@ -4,7 +4,7 @@ import random
 from shapely import Point, Polygon
 from shapely.ops import unary_union
 
-import agent_task
+import model.agent_task as agent_task
 
 
 class Interactable:
@@ -75,7 +75,8 @@ class Interactable:
             )
         self.__area = unary_union(areas)
 
-    def interact(self, agent):
+    @property
+    def task(self):
         return self._task
 
 
@@ -117,6 +118,7 @@ class Gate(Entrance):
         super().__init__(name, inlet_point, outlet_point, area, max_occupy, scale, step)
         self.__releasing_passengers = None
         self.plane = None
+        self.is_plane_attached = False
 
     def interact(self, agent):
         if not self.plane:
@@ -128,7 +130,7 @@ class Gate(Entrance):
                 self.__releasing_passengers = None
             return agent_task.CompletionTask()
         elif self.__releasing_passengers is True:
-            return agent_task.WaitingTask()
+            return agent_task.BoardedTask()
 
     def add_arriving_plane(self, plane, agents: list):
         self._storage = agents

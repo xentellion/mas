@@ -1,4 +1,5 @@
 # import asyncio
+import functools
 import logging
 from copy import deepcopy
 from multiprocessing import Process, Manager
@@ -8,10 +9,9 @@ from enum import Enum
 from numpy import ceil
 from shapely import LineString, MultiPolygon, Point, Polygon
 
-from extras import execution_timer
-from node import Node, Graph, RoughGraph, SubGraph
-
-# from wall import Wall
+from model.extras import execution_timer
+from model.node import Node
+from model.graph import Graph, RoughGraph, SubGraph
 
 
 class HeuristicsDistance(Enum):
@@ -32,29 +32,28 @@ class Pathfinder:
         heuristic=HeuristicsDistance.MANHATTAN,
     ):
         if point_a == point_b:
-            logging.warn("Searching path for a same node")
-            return list()
+            logging.warning("Searching path for a same node")
+            return []
         # Find and check points
         starting_node = graph.get_node(point_a)
         if starting_node is None:
             logging.error("Starting point not in graph")
-            return list()
+            return []
         target_node = graph.get_node(point_b)
         if target_node is None:
             logging.error("Target point not in graph")
-            return list()
+            return []
         # if different - consult rough_graph
         if target_node.subgraph != starting_node.subgraph:
             if not graph.rough_graph:
                 logging.error("No rough graph to navigate")
-                return list()
+                return []
             graph.rough_graph.add_rough_node(point_a, starting_node)
             graph.rough_graph.add_rough_node(point_b, target_node)
-            rough_path = Pathfinder.search_one_path(
+            rough_path = Pathfinder.search_path(
                 graph.rough_graph,
                 point_a,
                 point_b,
-                starting_node,
                 target_node,
                 heuristic,
             )
@@ -69,29 +68,24 @@ class Pathfinder:
                 # Uneven nodes are trasnmissions between points
                 if idx % 2 == 1:
                     continue
-                s_n = graph.get_node(p[0])
                 e_n = graph.get_node(p[1])
-                path += Pathfinder.search_one_path(
+                path += Pathfinder.search_path(
                     graph,
                     p[0],
                     p[1],
-                    s_n,
                     e_n,
                     heuristic,
                 )
         else:
-            path = Pathfinder.search_one_path(
-                graph, point_a, point_b, starting_node, target_node
-            )[::-1]
-        logging.info(f"Found path in {len(path)} steps")
+            path = Pathfinder.search_path(graph, point_a, point_b, target_node)[::-1]
+        logging.info("Found path in %s steps", len(path))
         return path
 
     @staticmethod
-    def search_one_path(
+    def search_path(
         graph: Graph,
         point_a: int,
         point_b: int,
-        starting_node: Node,
         target_node: Node,
         heuristic_distance: HeuristicsDistance = HeuristicsDistance.MANHATTAN,
     ):
@@ -124,7 +118,7 @@ class Pathfinder:
 
         if not path_found:
             logging.warning("No path found")
-            return list()
+            return []
 
         current_node = point_b
         path = [point_b]
@@ -141,6 +135,8 @@ class Pathfinder:
         distance: HeuristicsDistance = HeuristicsDistance.MANHATTAN,
     ):
         dist = None
+        if isinstance(point_a, tuple):
+            point_a = point_a[1]
         match distance:
             case HeuristicsDistance.MANHATTAN:
                 # manhattan distance since we are using a grid
@@ -154,7 +150,7 @@ class Pathfinder:
 
     @execution_timer("Create node grid")
     @staticmethod
-    def create_node_grid(ax, area, step=0.25):
+    def create_node_grid(area, step=0.25):
         if isinstance(area, Polygon):
             points = [Pathfinder.get_nodes_coordinates(area, step)]
         elif isinstance(area, MultiPolygon):
@@ -190,11 +186,8 @@ class Pathfinder:
 
         for subgraph_id, sg in enumerate(nodes_clusters):
             for node_id, node in enumerate(sg):
-                graph.set_node(
-                    subgraph_id, node_id + shift, Node(node, subgraph_id, step)
-                )
+                graph.set_node(subgraph_id, node_id + shift, Node(node, subgraph_id))
             shift += len(sg)
-        del node, sg, shift
         edges = Manager().Queue()
         processes = [
             Process(
@@ -222,7 +215,7 @@ class Pathfinder:
         for idx, room in enumerate(flats[1:]):
             if not room.interactables:
                 continue
-            for i, inter in enumerate(room.interactables):
+            for inter in room.interactables:
                 new_points = []
                 for point_type in (inter.inlet_point, inter.outlet_point):
                     batch = []
@@ -230,8 +223,10 @@ class Pathfinder:
                         pt = Node(p, idx)
                         points = sorted(
                             graph[idx].items(),
-                            key=lambda x: Pathfinder.heuristic(
-                                x[1], pt, HeuristicsDistance.EUCLID
+                            key=functools.partial(
+                                Pathfinder.heuristic,
+                                point_b=pt,
+                                distance=HeuristicsDistance.EUCLID,
                             ),
                         )
                         mapping[points[0][0]] = inter.name
@@ -260,11 +255,16 @@ class Pathfinder:
         for c in extra_connections:
             rough_graph.get_node(c[0]).point_neighbors = {c[1]: step}
             rough_graph.get_node(c[1]).point_neighbors = {c[0]: step}
+
+        def comparator(x, y):
+            nonlocal rough_graph
+            return rough_graph.get_node(x).subgraph == y
+
         # Even worse
         for idx in graph.subgraphs:
             close_by = tuple(
                 filter(
-                    lambda z: rough_graph.get_node(z).subgraph == idx,
+                    functools.partial(comparator, y=idx),
                     (x for x in rough_graph[0]),
                 )
             )
