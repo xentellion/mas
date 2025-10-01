@@ -70,7 +70,7 @@ class AreaRender:
         with open(path, "wb") as f:
             pickle.dump(self.graph, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-    def create_area(self, path: str = None):
+    def create_area(self, path: str = None, rebuild: bool = False):
         if path is not None:
             return
         plt.connect("button_press_event", self.on_click)
@@ -82,7 +82,7 @@ class AreaRender:
         if not self.flats:
             return
         nodes = Pathfinder.create_node_grid(area, self.step)
-        if not os.path.isfile(GRAPH_PATH):
+        if not os.path.isfile(GRAPH_PATH) or rebuild:
             self.graph = Pathfinder.construct_edges(area, nodes, self.step)
             self.save_graph(GRAPH_PATH)
         else:

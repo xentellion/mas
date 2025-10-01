@@ -58,7 +58,7 @@ class Agent:
             interactables (dict[str, Interactable]): list of interactable objects
 
         Returns:
-            _type_: Current status info or None
+            [bool, None]: Current status info or None
         """
         if self.__current_task is None:
             if not self.tasks:
@@ -66,6 +66,8 @@ class Agent:
             self.change_task(graph)
         status = self.__current_task.tick()
         if status is None:
+            if self.__current_task.status is not None:
+                self.status.append(self.__current_task.status)
             self.__current_task = None
             self.change_task(graph)
             return None
@@ -91,12 +93,14 @@ class Agent:
         except requests.HTTPError as e:
             logging.error(e)
             path = None
-        print(f"{self.name} -> {path}")
+        print(f"{self.name} -> {path} [{prompt}]")
+        # Agent only requests walking tasks as other tasks are just
+        # sitting around with different flavors
         task = agent_task.WalkingTask(path, interactables)
         task.setup(self.position, graph)
-        self.add_task(task, graph)
+        self.add_task(task)
 
-    def add_task(self, task: agent_task.AgentTask, graph: Graph):
+    def add_task(self, task: agent_task.AgentTask):
         """Add new task to the list of available tasks
 
         Args:
@@ -105,10 +109,6 @@ class Agent:
         """
         if task is None:
             return
-        if not self.tasks:
-            if isinstance(task, agent_task.WalkingTask):
-                task.setup(self.position, graph)
-            self.__current_task = task
         if task.priority:
             self.tasks.appendleft(task)
         else:
@@ -125,10 +125,10 @@ class Agent:
             graph (Graph): walkable area graph
         """
         if not self.tasks:
-            return
+            return None
         self.__current_task = self.tasks.popleft()
         self.state = self.__current_task.state
-        self.__ui_object.set_visible(True)
+        self.__ui_object.set_visible(self.state is not State.COMPLETE)
         if isinstance(self.__current_task, agent_task.WalkingTask):
             self.__current_task.setup(self.position, graph)
 

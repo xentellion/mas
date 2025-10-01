@@ -12,9 +12,10 @@ from model.pathfinder import Pathfinder
 class AgentTask(ABC):
     """Generic task"""
 
-    def __init__(self):
+    def __init__(self, status: str = None):
         self.state = None
         self.priority = False
+        self.status = status
 
     @abstractmethod
     def tick(self):
@@ -34,7 +35,7 @@ class WalkingTask(AgentTask):
         interactables (dict[str, Interactable]): list of possible interactive points
     """
 
-    def __init__(self, dest: str, interactables):
+    def __init__(self, dest: str, interactables, status: str = None):
         super().__init__()
         self.dest = (
             random.choice(interactables[dest].outlet_point)
@@ -43,6 +44,7 @@ class WalkingTask(AgentTask):
         )
         self.path = None
         self.state = State.WALKING
+        self.status = status
 
     def setup(self, source: int, graph: Graph):
         """Rebuilds path based on agent location
@@ -70,36 +72,39 @@ class InteractingTask(AgentTask):
         time (int): time in tics
     """
 
-    def __init__(self, time: int):
+    def __init__(self, time: int, status: str = None):
         super().__init__()
         self.__max_time = time
         self.time = time
         self.state = State.PERFORMING
+        self.status = status
 
     def tick(self):
+        self.time -= 1
         if self.time <= 0:
             self.time = self.__max_time
             return None
-        self.time -= 1
+        print(f"Interact {self.time}")
         return True
 
 
 class BoardedTask(AgentTask):
     """Task for agent to board and await flight or cancellation"""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, status: str = None):
+        super().__init__(status)
         self.state = State.PERFORMING
 
     def tick(self):
-        pass
+        print("Boarded")
+        return True
 
 
 class CompletionTask(AgentTask):
     """Final task, given to agent on reaching exit or on plane departing"""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, status: str = None):
+        super().__init__(status)
         self.state = State.COMPLETE
 
     def tick(self):
