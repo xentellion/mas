@@ -40,6 +40,8 @@ class Wall:
                         )
                     case "baggage":
                         itr = interactable.BaggageReclaim(**i, scale=scale, step=step)
+                    case "registration":
+                        itr = interactable.RegistrationDesk(**i, scale=scale, step=step)
                     case _:
                         itr = interactable.Interactable(**i, scale=scale, step=step)
                         logging.warning("Unidentified interactable")

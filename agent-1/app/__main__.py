@@ -8,6 +8,7 @@ from model import agent_task, interactable
 from model.agent import Agent, State
 from model.environment import AreaRender
 from model.plane import Plane
+from model.prepared_items import PreparedPlane, PreparedAgent
 
 
 logging.basicConfig(
@@ -21,39 +22,61 @@ logging.basicConfig(
 def main():
     logging.info("\n--------------Initializing--------------")
 
-    plt.ion()
     step = 1
-    ren = AreaRender(step)
+    ren = AreaRender(step, True)
     prompts = ren.load_prompts()
-    ren.create_area()
-    ren.draw_intercatables()
 
-    ren.draw_edges()
-    ren.draw_transitions()
-
-    sleep(1)
     agents = []
+    planes = []
+
+    prepared_agents = [
+        PreparedAgent(
+            agent=Agent("agent_departing", prompts.prompt_departing),
+            flight="plane_a",
+            spawn_point="entrance",
+            spawn_time=0,
+        ),
+        PreparedPlane(
+            plane=Plane("plane_d", "gate_1", 1, None, False),
+            spawn_time=0,
+        ),
+        PreparedPlane(
+            plane=Plane(
+                "plane_a",
+                "gate_2",
+                1,
+                None,
+                True,
+                [
+                    Agent("agent_arriving", prompts.prompt_arriving),
+                ],
+            ),
+            spawn_time=0,
+        ),
+    ]
 
     plt.show()
-    sleep(1)
+    sleep(2)
 
-    agent_1 = Agent("agent_1", prompts.prompt_arriving)
-    agent_1.ui_object.radius = step * 0.4
-    agent_2 = Agent("agent_2", prompts.prompt_departing)
-    agent_2.ui_object.radius = step * 0.4
-
-    plane_1 = Plane("arriver", "plane_1", 1, None)
-    plane_2 = Plane("departer", "plane_a", 2, None)
-
-    ren.interactables["Gate_2"].add_arriving_plane(plane_1, [agent_1])
-    ren.interactables["Gate_1"].add_departing_plane(plane_2)
-
-    ren.interactables["Entrance"].add_new_agent(agent_2, ren.graph, "plane_a", "Gate_1")
+    tick_count = 0
 
     while True:
+        for loaded in prepared_agents.copy():
+            if loaded.spawn_time > tick_count:
+                break
+            if isinstance(loaded, PreparedPlane):
+                ren.interactables[loaded.plane.gate].add_plane(loaded.plane)
+            elif isinstance(loaded, PreparedAgent):
+                ren.interactables[loaded.spawn_point].add_new_agent(
+                    loaded.agent, ren.graph, loaded.flight, ""
+                )
+            prepared_agents.remove(loaded)
+
+        prepared_agents.sort(key=lambda x: x.spawn_time)
+
         for point in ren.interactables.values():
             if isinstance(point, (interactable.Entrance, interactable.Gate)):
-                new_ag = point.spawn_agent(ren.graph, ren.interactables)
+                new_ag = point.spawn_agent(ren.graph, ren.interactables, step)
                 if new_ag is not None:
                     ren.ax.add_patch(new_ag.ui_object)
                     agents.append(new_ag)
@@ -65,7 +88,7 @@ def main():
                 if a.current_task is None and a.state is State.WALKING:
                     if a.position in ren.interactables_mapping:
                         inter = ren.interactables[ren.interactables_mapping[a.position]]
-                        a.add_task(inter.task)
+                        a.add_task(inter.get_task(a))
             else:
                 if isinstance(a.current_task, agent_task.WalkingTask):
                     a.move(ren.graph.get_node(new_pos).point.xy, new_pos)
@@ -74,6 +97,7 @@ def main():
 
         ren.fig.canvas.draw()
         ren.fig.canvas.flush_events()
+        tick_count += 1
     plt.show(block=True)
 
 

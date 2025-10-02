@@ -24,7 +24,7 @@
             "type":"debugpy",
             "request":"launch",
             "python": "${workspaceFolder}/chromadb-service/venv-chroma/bin/python",
-            "program":"${workspaceFolder}/chromadb-service/app/main.py",
+            "program":"${workspaceFolder}/chromadb-service/app/__main__.py",
             "console":"integratedTerminal",
             "cwd" : "${workspaceFolder}/chromadb-service"
         },
@@ -37,7 +37,8 @@
             "console": "integratedTerminal",
             "cwd" : "${workspaceFolder}/agent-1",
             "env": {
-                "LLM":"http://localhost:8000"
+                "LLM":"http://localhost:8000",
+                "LOG_PROMPTS": "True"
             }
         }
     ]

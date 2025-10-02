@@ -84,7 +84,6 @@ class InteractingTask(AgentTask):
         if self.time <= 0:
             self.time = self.__max_time
             return None
-        print(f"Interact {self.time}")
         return True
 
 
@@ -96,7 +95,6 @@ class BoardedTask(AgentTask):
         self.state = State.PERFORMING
 
     def tick(self):
-        print("Boarded")
         return True
 
 

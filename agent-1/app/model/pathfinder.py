@@ -60,14 +60,11 @@ class Pathfinder:
             # return rough_path
             rough_path = [
                 (rough_path[idx], rough_path[idx + 1])
-                for idx in range(len(rough_path) - 1)
+                for idx in range(0, len(rough_path) - 1, 2)
             ]
 
-            path = []
+            path = [point_a]
             for idx, p in enumerate(rough_path[::-1]):
-                # Uneven nodes are trasnmissions between points
-                if idx % 2 == 1:
-                    continue
                 e_n = graph.get_node(p[1])
                 path += Pathfinder.search_path(
                     graph,
@@ -78,7 +75,7 @@ class Pathfinder:
                 )
         else:
             path = Pathfinder.search_path(graph, point_a, point_b, target_node)[::-1]
-        logging.info("Found path in %s steps", len(path))
+        logging.debug("Found path in %s steps", len(path))
         return path
 
     @staticmethod

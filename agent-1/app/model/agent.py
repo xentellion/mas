@@ -15,6 +15,9 @@ from model.extras import State
 from model.graph import Graph
 
 
+LOG_PROMPTS = os.getenv("LOG_PROMPTS") == "True"
+
+
 class Agent:
     """Describes active agent, capable of interacting with the environment
 
@@ -73,7 +76,11 @@ class Agent:
             return None
         return status
 
-    def request_task(self, graph, interactables):
+    def request_task(
+        self,
+        graph,
+        interactables,
+    ):
         """Send request to LLM on next point of interaction
 
         Args:
@@ -84,7 +91,7 @@ class Agent:
             self.tasks.appendleft(self.__current_task)
             self.__current_task = None
         try:
-            prompt = self.__prompt.format(" ".join(self.status))
+            prompt = self.__prompt.format(". ".join(self.status))
             path = requests.post(
                 os.getenv("LLM"),
                 params={"prompt": prompt},
@@ -93,10 +100,11 @@ class Agent:
         except requests.HTTPError as e:
             logging.error(e)
             path = None
-        print(f"{self.name} -> {path} [{prompt}]")
+        if LOG_PROMPTS is True:
+            logging.info("%s -> %s [%s]", self.name, path, prompt)
         # Agent only requests walking tasks as other tasks are just
         # sitting around with different flavors
-        task = agent_task.WalkingTask(path, interactables)
+        task = agent_task.WalkingTask(path.lower().strip(), interactables)
         task.setup(self.position, graph)
         self.add_task(task)
 
@@ -105,11 +113,10 @@ class Agent:
 
         Args:
             task (agent_task.AgentTask): new task
-            graph (Graph): walkable area graph
         """
         if task is None:
             return
-        if task.priority:
+        elif task.priority:
             self.tasks.appendleft(task)
         else:
             self.tasks.append(task)
@@ -131,6 +138,11 @@ class Agent:
         self.__ui_object.set_visible(self.state is not State.COMPLETE)
         if isinstance(self.__current_task, agent_task.WalkingTask):
             self.__current_task.setup(self.position, graph)
+        logging.debug(
+            "Agent %s changed task to <<%s>>",
+            self.name,
+            self.__current_task.__class__.__name__,
+        )
 
     def move(self, point: tuple[int], index: int):
         """Move agent to the set point in graph

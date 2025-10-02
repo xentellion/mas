@@ -1,22 +1,32 @@
 class Plane:
-    def __init__(self, name, board_number, volume, departure_time):
+    def __init__(
+        self,
+        name: str,
+        gate: str,
+        volume: int,
+        departure_time: int,
+        is_arriving: bool,
+        passengers: list = None,
+    ):
         self.__name = name
-        self.__board_number = board_number
+        self.__gate = gate
         self.__volume = volume
-        self.__departure_time = departure_time
+        self.__is_arriving = is_arriving
+        self.departure_time = departure_time
+        self.passengers = [] if passengers is None else passengers
 
     @property
     def name(self):
         return self.__name
 
     @property
-    def board_number(self):
-        return self.__board_number
+    def gate(self):
+        return self.__gate
 
     @property
     def volume(self):
         return self.__volume
 
     @property
-    def departure_time(self):
-        return self.__departure_time
+    def is_arriving(self):
+        return self.__is_arriving

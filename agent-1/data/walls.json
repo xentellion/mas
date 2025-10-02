@@ -89,7 +89,7 @@
             "enclosed": true,
             "interactables": [
                 {
-                    "name": "Exit",
+                    "name": "exit",
                     "inlet_point": [
                         [
                             20,
@@ -146,7 +146,7 @@
             "enclosed": true,
             "interactables": [
                 {
-                    "name": "Entrance",
+                    "name": "entrance",
                     "inlet_point": [
                         [
                             14,
@@ -158,7 +158,7 @@
                     "max_occupy": 1
                 },
                 {
-                    "name": "Security_Checkpoint_entrance",
+                    "name": "security_checkpoint_entrance",
                     "inlet_point": [
                         [
                             12,
@@ -292,7 +292,7 @@
             "enclosed": true,
             "interactables": [
                 {
-                    "name": "Registration_Desk_1",
+                    "name": "registration_desk_1",
                     "inlet_point": [
                         [
                             6,
@@ -384,7 +384,7 @@
             "enclosed": true,
             "interactables": [
                 {
-                    "name": "Gate_1",
+                    "name": "gate_1",
                     "inlet_point": [
                         [
                             4,
@@ -469,7 +469,7 @@
             "enclosed": true,
             "interactables": [
                 {
-                    "name": "Gate_2",
+                    "name": "gate_2",
                     "inlet_point": [
                         [
                             14.5,
@@ -609,7 +609,7 @@
             "enclosed": true,
             "interactables": [
                 {
-                    "name": "Baggage_Reclaim",
+                    "name": "baggage_reclaim",
                     "inlet_point": [
                         [
                             18,
@@ -702,7 +702,7 @@
             "enclosed": true,
             "interactables": [
                 {
-                    "name": "Security_Checkpoint_exit",
+                    "name": "security_checkpoint_exit",
                     "inlet_point": [
                         [
                             15,

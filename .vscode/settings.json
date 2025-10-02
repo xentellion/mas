@@ -5,10 +5,5 @@
     "flake8.severity" : {
         "E203" : "Hint",
         "E402" : "Hint"
-    },
-    "python.linting.pylintArgs": [
-        "--disable=C0114",
-        "--disable=C0115",
-        "--disable=C0116"
-    ]
+    }
 }

@@ -20,11 +20,13 @@ from model.wall import Wall
 from model.extras import execution_timer
 from model.graph import Graph
 
+
 GRAPH_PATH = "data/graph.bin"
 
 
 class AreaRender:
-    def __init__(self, step=1):
+    @execution_timer("Building and rendering area")
+    def __init__(self, step=1, draw_grid=True):
         self.step = step
 
         self.graph = None
@@ -33,8 +35,14 @@ class AreaRender:
         self.flats = self.load_walls()
 
         self.edges_drawn = []
+        plt.ion()
         self.fig, self.ax = plt.subplots(1, 1)
         self.interactables_mapping, self.interactables = None, None
+        self.create_area()
+        self.draw_intercatables()
+        if draw_grid:
+            self.draw_edges()
+            self.draw_transitions()
 
     @execution_timer("Load walls data")
     def load_walls(self, path="data/walls.json") -> list[Wall]:

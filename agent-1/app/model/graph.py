@@ -16,8 +16,7 @@ class Graph:
         if isinstance(key, slice):
             start, stop, step = key.indices(len(self._subgraphs))
             return [self._subgraphs[index] for index in range(start, stop, step)]
-        else:
-            return self._subgraphs[key]
+        return self._subgraphs[key]
 
     def __setitem__(self, key, value):
         if not isinstance(key, int):
@@ -55,7 +54,9 @@ class SubGraph:  # Glorified dictionary bruh
         self.__nodes = {}
 
     def __getitem__(self, key):
-        return self.__nodes[key]
+        if key in self.__nodes:
+            return self.__nodes[key]
+        return None
 
     def __setitem__(self, key, value):
         if not isinstance(key, int):
@@ -88,6 +89,8 @@ class RoughGraph(Graph):
             node_id (int): id
             node (Node): node object
         """
+        if self._subgraphs[0][node_id] is not None:
+            return
         self._subgraphs[0][node_id] = deepcopy(node)
         close_by = tuple(
             filter(

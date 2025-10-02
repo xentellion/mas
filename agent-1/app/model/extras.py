@@ -14,13 +14,13 @@ class State(Enum):
 def execution_timer(msg: str = "Task"):
     def outer_wrapper(func):
         def inner_wrapper(*args, **kwargs):
-            logging.info('Task "%s" started', msg)
+            logging.debug('Task "%s" started', msg)
             start_time = time.perf_counter()
 
             function = func(*args, **kwargs)
 
             end_time = time.perf_counter()
-            logging.info(
+            logging.debug(
                 'Task "%s"complete in %.2f seconds', msg, (end_time - start_time)
             )
             return function
