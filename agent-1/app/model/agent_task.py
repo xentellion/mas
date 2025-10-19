@@ -37,11 +37,15 @@ class WalkingTask(AgentTask):
 
     def __init__(self, dest: str, interactables, status: str = None):
         super().__init__()
-        self.dest = (
-            random.choice(interactables[dest].outlet_point)
-            if dest is not None
-            else None
-        )
+        try:
+            self.dest = (
+                random.choice(interactables[dest].outlet_point)
+                if dest is not None
+                else None
+            )
+        except KeyError as e:
+            logging.error(e)
+            self.dest = None
         self.path = None
         self.state = State.WALKING
         self.status = status
@@ -84,17 +88,6 @@ class InteractingTask(AgentTask):
         if self.time <= 0:
             self.time = self.__max_time
             return None
-        return True
-
-
-class BoardedTask(AgentTask):
-    """Task for agent to board and await flight or cancellation"""
-
-    def __init__(self, status: str = None):
-        super().__init__(status)
-        self.state = State.PERFORMING
-
-    def tick(self):
         return True
 
 

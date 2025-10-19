@@ -1,3 +1,8 @@
+"""starting script"""
+
+import os
+import json
+import time
 import logging
 
 from time import sleep
@@ -10,7 +15,7 @@ from model.environment import AreaRender
 from model.plane import Plane
 from model.prepared_items import PreparedPlane, PreparedAgent
 
-
+TPS = 1 / float(os.environ["TPS"])
 logging.basicConfig(
     level=logging.INFO,
     filename="py_log.log",
@@ -19,19 +24,29 @@ logging.basicConfig(
 )
 
 
+def load_prompts(path="data/prompt.json"):
+    with open(path, "r", encoding="UTF-8") as f:
+        try:
+            data = json.load(f)
+        except FileNotFoundError:
+            logging.error("Failed to load prompts")
+            return None
+        for k, v in data.items():
+            os.environ[str(k).upper()] = str(v)
+
+
 def main():
+    """main"""
     logging.info("\n--------------Initializing--------------")
-
+    load_prompts()
     step = 1
-    ren = AreaRender(step, True)
-    prompts = ren.load_prompts()
-
+    ren = AreaRender(step, False)
     agents = []
-    planes = []
+    # planes = []
 
     prepared_agents = [
         PreparedAgent(
-            agent=Agent("agent_departing", prompts.prompt_departing),
+            agent=Agent("agent_departing", os.environ["PROMPT_DEPARTING"]),
             flight="plane_a",
             spawn_point="entrance",
             spawn_time=0,
@@ -48,7 +63,7 @@ def main():
                 None,
                 True,
                 [
-                    Agent("agent_arriving", prompts.prompt_arriving),
+                    Agent("agent_arriving", os.environ["PROMPT_ARRIVING"]),
                 ],
             ),
             spawn_time=0,
@@ -98,6 +113,7 @@ def main():
         ren.fig.canvas.draw()
         ren.fig.canvas.flush_events()
         tick_count += 1
+        time.sleep(TPS - (time.time() % TPS))
     plt.show(block=True)
 
 

@@ -8,7 +8,8 @@ class State(Enum):
     IDLE = 0
     WALKING = 1
     PERFORMING = 2
-    COMPLETE = 3
+    BOARDED = 3
+    COMPLETE = 4
 
 
 def execution_timer(msg: str = "Task"):

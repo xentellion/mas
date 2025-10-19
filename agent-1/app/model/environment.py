@@ -15,7 +15,6 @@ from pydantic import ValidationError
 from shapely.geometry import Polygon, MultiPolygon, LineString
 
 from model.pathfinder import Pathfinder
-from model.prompts import Prompts
 from model.wall import Wall
 from model.extras import execution_timer
 from model.graph import Graph
@@ -61,14 +60,6 @@ class AreaRender:
             logging.error("JSON data cannot be loaded: %s", e)
             return
         return flats
-
-    def load_prompts(self, path="data/prompt.json") -> Prompts:
-        with open(path, "r", encoding="UTF-8") as f:
-            try:
-                return Prompts.model_validate(json.load(f))
-            except ValidationError:
-                logging.error("Failed to load and validate prompts")
-                return None
 
     def load_graph(self, path: str) -> Graph:
         with open(path, "rb") as f:

@@ -38,7 +38,8 @@
             "cwd" : "${workspaceFolder}/agent-1",
             "env": {
                 "LLM":"http://localhost:8000",
-                "LOG_PROMPTS": "True"
+                "LOG_PROMPTS": "True",
+                "TPS": "15"
             }
         }
     ]

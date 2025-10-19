@@ -3,7 +3,6 @@
 import logging
 import os
 
-
 from collections import deque
 import uuid
 
@@ -154,14 +153,22 @@ class Agent:
         self.position = index
         self.__ui_object.set_center(point)
 
-    def set_visible(self, visibility: bool = True):
+    def set_visible(self, visibility: bool = True, step: float = 1):
         """Set visibility of agent mark on a plan
 
         Args:
             visibility (bool, optional): True if visible. Defaults to True.
         """
+        if step is not None:
+            self.__ui_object.radius = step * 0.4
         self.__ui_object.set_visible(visibility)
 
     def remove_token(self):
         """Delete visible token"""
         self.__ui_object.remove()
+
+    def reset_status(self, is_departing: bool = True, extra_message=""):
+        self.__prompt = os.environ[
+            "PROMPT_DEPARTING" if is_departing else "PROMPT_ARRIVING"
+        ]
+        self.status = [extra_message]

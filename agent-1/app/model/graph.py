@@ -3,7 +3,7 @@ from model.node import Node
 
 
 class Graph:
-    def __init__(self, subgraph=None):
+    def __init__(self, subgraph: dict = None):
         self._subgraphs = {} if not subgraph else subgraph
         self.edges = []
         self.rough_graph = None
@@ -31,7 +31,7 @@ class Graph:
     def get_node(self, key) -> Node:
         subg = next((x for x in self._subgraphs.values() if key in x), None)
         if not subg:
-            raise KeyError("Node not found")
+            return None
         return subg[key]
 
     def set_node(self, subgraph, key, value):
@@ -46,26 +46,26 @@ class Graph:
         yield from self._subgraphs.keys()
 
     def __len__(self):
-        return sum(len(self._subgraphs[x]) for x in self._subgraphs)
+        return sum(map(len, self._subgraphs.values()))
 
 
 class SubGraph:  # Glorified dictionary bruh
     def __init__(self):
         self.__nodes = {}
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: int):
         if key in self.__nodes:
             return self.__nodes[key]
         return None
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: int, value: Node):
         if not isinstance(key, int):
             raise TypeError("Key must be an integer")
         if not isinstance(value, Node):
             raise TypeError("Value must be a Node")
         self.__nodes[key] = value
 
-    def __delitem__(self, key):
+    def __delitem__(self, key: int):
         del self.__nodes[key]
 
     def __iter__(self):

@@ -79,10 +79,6 @@ class Interactable:
     def get_task(self, agent):
         return self._task
 
-    # def interact(self, agent):
-    #     agent.status.append(self.status)
-    #     return self._task
-
 
 class Entrance(Interactable):
     _storage = []
@@ -102,8 +98,7 @@ class Entrance(Interactable):
         if self._storage:
             agent = self._storage.pop()
             agent.position = random.choice(self.outlet_point)
-            agent.ui_object.radius = step * 0.4
-            agent.set_visible()
+            agent.set_visible(step=step)
             if starting_status is not None:
                 agent.status.append(starting_status)
             agent.request_task(graph, interactables)
@@ -117,16 +112,20 @@ class Exit(Interactable):
         self._task = agent_task.CompletionTask()
 
 
-class Gate(Entrance):
+class Gate(Interactable):
     def __init__(self, name, inlet_point, outlet_point, area, max_occupy, scale, step):
         super().__init__(name, inlet_point, outlet_point, area, max_occupy, scale, step)
-        self.__releasing_passengers = None
+        # self.__releasing_passengers = None
         self.plane = None
-        self._task = agent_task.BoardedTask()
+        self._task = agent_task.CompletionTask()
 
     def get_task(self, agent):
+        if not self.plane:
+            return None
         # TODO add ticket check
-        if self.__releasing_passengers is False:
+        if self.plane.is_arriving is False:
+            agent.status
+            self.plane.passengers.append(agent)
             return self._task
         return None
 
@@ -134,24 +133,28 @@ class Gate(Entrance):
         if self.plane is not None:
             logging.warning("Trying to dock a plane to an occupied gate")
             return
-        self.__releasing_passengers = plane.is_arriving
         self.plane = plane
-        self._storage = plane.passengers
 
     def depart(self):
-        self._storage = []
-        self.__releasing_passengers = None
+        self.plane = None
 
-    def spawn_agent(self, *args, **kwargs):
-        if not self.__releasing_passengers:
+    def spawn_agent(self, graph, interactables, step: int, starting_status=None):
+        if not self.plane:
             return None
-        if self.plane is not None:
-            if not self._storage:
-                logging.warning("Plane %s is empty", self.plane.name)
-                self.plane = None
-                return None
-            status = f"Ты только что сошел c рейса {self.plane.name}"
-            return super().spawn_agent(starting_status=status, *args, **kwargs)
+        if not self.plane.is_arriving:
+            return None
+        if not self.plane.passengers:
+            # logging.warning("Plane %s is empty", self.plane.name)
+            return None
+        starting_status = f"Ты только что сошел c рейса {self.plane.name}"
+
+        agent = self.plane.passengers.pop()
+        agent.position = random.choice(self.outlet_point)
+        agent.set_visible(step=step)
+        if starting_status is not None:
+            agent.status.append(starting_status)
+        agent.request_task(graph, interactables)
+        return agent
 
 
 class SecurityCheckpoint(Interactable):
