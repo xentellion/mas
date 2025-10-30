@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from matplotlib.path import Path
 from matplotlib.patches import PathPatch
 from matplotlib.collections import PatchCollection
-from pydantic import ValidationError
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from shapely.geometry import Polygon, MultiPolygon, LineString
 
 from model.pathfinder import Pathfinder
@@ -23,19 +23,18 @@ from model.graph import Graph
 GRAPH_PATH = "data/graph.bin"
 
 
-class AreaRender:
+class AreaRender(FigureCanvasQTAgg):
     @execution_timer("Building and rendering area")
     def __init__(self, step=1, draw_grid=True):
-        self.step = step
+        self.fig, self.ax = plt.subplots(1, 1)
+        super().__init__(self.fig)
 
+        self.step = step
         self.graph = None
         self.extra_connections = None
-
         self.flats = self.load_walls()
-
+        # plt.ion()
         self.edges_drawn = []
-        plt.ion()
-        self.fig, self.ax = plt.subplots(1, 1)
         self.interactables_mapping, self.interactables = None, None
         self.create_area()
         self.draw_intercatables()

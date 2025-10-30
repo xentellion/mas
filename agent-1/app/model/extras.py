@@ -12,6 +12,11 @@ class State(Enum):
     COMPLETE = 4
 
 
+class StartPrompt(Enum):
+    PROMPT_DEPARTING = 0
+    PROMPT_ARRIVING = 1
+
+
 def execution_timer(msg: str = "Task"):
     def outer_wrapper(func):
         def inner_wrapper(*args, **kwargs):

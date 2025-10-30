@@ -1,0 +1,38 @@
+{
+    "planes": [
+        {
+            "name": "QF014",
+            "gate": "gate_2",
+            "volume": 1,
+            "spawn_time": "0",
+            "departure_time": "0",
+            "is_arriving": true,
+            "passengers": [
+                {
+                    "name": "arriving_passenger",
+                    "initial_state": 1
+                }
+            ]
+        },
+        {
+            "name": "QF025",
+            "gate": "gate_1",
+            "volume": 1,
+            "spawn_time": "0",
+            "departure_time": "0",
+            "is_arriving": false,
+            "passengers": []
+        }
+    ],
+    "departing_passengers": [
+        {
+            "agent": {
+                "name": "departing_passenger",
+                "initial_state": 0
+            },
+            "flight": "plane_a",
+            "spawn_point": "entrance",
+            "spawn_time": "0"
+        }
+    ]
+}
