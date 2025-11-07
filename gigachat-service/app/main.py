@@ -47,6 +47,6 @@ async def get_llm_response(prompt: str):
 
 
 def local_request(prompt):
-    qa_chain = RetrievalQA.from_chain_type(llm, retriever=db.as_retriever())
+    qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=db.as_retriever())
     res = qa_chain.invoke({"query": prompt})
     return res["result"]

@@ -2,31 +2,31 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name":"Gigachat debug",
-            "type":"debugpy",
-            "request":"launch",
-            "module":"uvicorn",
+            "name": "Gigachat debug",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
             "python": "${workspaceFolder}/gigachat-service/venv-gigachat/bin/python",
-            "cwd" : "${workspaceFolder}/gigachat-service",
+            "cwd": "${workspaceFolder}/gigachat-service",
             "args": [
                 "app.main:app",
                 "--reload",
-                "--host", 
+                "--host",
                 "0.0.0.0",
             ],
-            "jinja":true,
+            "jinja": true,
             "env": {
-                "CHROMA":"0.0.0.0"
+                "CHROMA": "0.0.0.0"
             }
         },
         {
-            "name":"ChromaDB Debug",
-            "type":"debugpy",
-            "request":"launch",
+            "name": "ChromaDB Debug",
+            "type": "debugpy",
+            "request": "launch",
             "python": "${workspaceFolder}/chromadb-service/venv-chroma/bin/python",
-            "program":"${workspaceFolder}/chromadb-service/app/__main__.py",
-            "console":"integratedTerminal",
-            "cwd" : "${workspaceFolder}/chromadb-service"
+            "program": "${workspaceFolder}/chromadb-service/app/__main__.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/chromadb-service"
         },
         {
             "name": "Agent Debug",
@@ -35,12 +35,13 @@
             "python": "${workspaceFolder}/agent-1/venv-agent/bin/python",
             "program": "${workspaceFolder}/agent-1/app/__main__.py",
             "console": "integratedTerminal",
-            "cwd" : "${workspaceFolder}/agent-1",
+            "cwd": "${workspaceFolder}/agent-1",
             "env": {
-                "LLM":"http://localhost:8000",
+                "LLM": "http://localhost:8000",
                 "LOG_PROMPTS": "True",
                 "TPS": "15"
-            }
+            },
+            // "preLaunchTask": "Start Containers"
         }
     ]
 }
