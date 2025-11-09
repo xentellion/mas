@@ -11,6 +11,7 @@ import logging
 # from time import sleep
 # https://stackoverflow.com/questions/33969053/how-to-pause-play-a-thread-in-pyqt5
 # import matplotlib.pyplot as plt
+import requests
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
 from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QPushButton, QWidget
 from PyQt6 import uic
@@ -213,6 +214,15 @@ class MainWindow(QMainWindow):
         return ren
 
     def start_sim(self):
+        try:
+            requests.get(os.getenv("LLM"), timeout=5).status_code
+        except:
+            self.statusbar.showMessage("LLM is not responding")
+            self.statusbar.setStyleSheet("color: red;")
+            return
+        self.statusbar.showMessage("Connection established")
+        self.statusbar.setStyleSheet("colorGroup: SystemPalette.Active; color: default;")
+
         self.lock_buttons(False)
         self.worker = SimWorker(self.ren)
         self.threadpool.start(self.worker)

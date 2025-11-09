@@ -102,6 +102,9 @@ class Agent:
         except requests.HTTPError as e:
             logging.error(e)
             path = None
+        except Exception as e:
+            logging.error(e)
+            return
         if LOG_PROMPTS is True:
             logging.info("%s -> %s [%s]", self.name, path, prompt)
         # Agent only requests walking tasks as other tasks are just
