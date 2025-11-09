@@ -20,6 +20,26 @@
             }
         },
         {
+            "name": "Deepseek debug",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "python": "${workspaceFolder}/deepseek-service/venv-deepseek/bin/python",
+            "cwd": "${workspaceFolder}/deepseek-service",
+            "args": [
+                "app.main:app",
+                "--reload",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8002"
+            ],
+            "jinja": true,
+            "env": {
+                "CHROMA": "0.0.0.0"
+            }
+        },
+        {
             "name": "ChromaDB Debug",
             "type": "debugpy",
             "request": "launch",

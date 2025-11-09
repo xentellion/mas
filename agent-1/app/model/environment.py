@@ -72,7 +72,7 @@ class AreaRender(FigureCanvasQTAgg):
         if path is not None:
             return
         plt.connect("button_press_event", self.on_click)
-        self.fig.suptitle("Airport")
+        # self.fig.suptitle("Airport")
 
         area = self.draw_walkable_area()
         self.draw_map()

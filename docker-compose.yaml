@@ -18,6 +18,18 @@ services:
       - "8000:81"
     restart: unless-stopped
     networks:
+      - internal  
+      
+  deepseek:
+    build: ./deepseek-service
+    command: uvicorn app.main:app --reload --host 0.0.0.0 --port 82
+    container_name: deepseek
+    environment:
+      - CHROMA=chromadb
+    ports:
+      - "8000:82"
+    restart: unless-stopped
+    networks:
       - internal
   
   zipkin:

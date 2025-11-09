@@ -18,7 +18,6 @@ from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal, pyqtSlot
 
 # from PyQt6.QtCore import QThread
 
-
 from model import agent_task, interactable
 from model.agent import Agent, State
 from model.extras import StartPrompt
