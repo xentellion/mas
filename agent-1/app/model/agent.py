@@ -94,7 +94,7 @@ class Agent:
             path = requests.post(
                 os.getenv("LLM"),
                 params={"prompt": prompt},
-                timeout=5,
+                timeout=120,
             ).json()["response"]
         except requests.HTTPError as e:
             logging.error(e)

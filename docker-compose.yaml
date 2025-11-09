@@ -8,6 +8,22 @@ services:
   #     - type: bind
   #       source: data
   #       target: /workdir/data
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - /usr/share/ollama/.ollama:/root/.ollama
+    networks:
+      - internal
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
   gigachat:
     build: ./gigachat-service
     command: uvicorn app.main:app --reload --host 0.0.0.0 --port 81
@@ -26,11 +42,20 @@ services:
     container_name: deepseek
     environment:
       - CHROMA=chromadb
+      - OLLAMA_HOST=ollama
+      - MODEL=deepseek-r1
+      # - MODEL=gpt-oss
+      # - MODEL=qwen3-vl
+      # - MODEL=gemma3:12b
+      # - MODEL=llama3.1
+      # - MODEL=mistral
     ports:
       - "8000:82"
     restart: unless-stopped
     networks:
       - internal
+    depends_on:
+      - ollama
   
   zipkin:
     image: openzipkin/zipkin

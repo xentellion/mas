@@ -7,37 +7,24 @@ sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
-from langchain_deepseek import ChatDeepSeek
+from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_classic.chains import RetrievalQA
 from langchain_chroma.vectorstores import Chroma
 
-# from .api.gigachat_api import GigachatSession
 
+# load_dotenv()
+# TOKEN = os.getenv("DEEPSEEK_API_KEY")
+MODEL=os.getenv("MODEL")
 
-load_dotenv()
-TOKEN = os.getenv("DEEPSEEK_API_KEY")
-# CERT_PATH_DEFAULT = "app/ca-gigachat.pem"
-
-
-# llm = GigaChat(
-#     credentials=TOKEN,
-#     verify_ssl_certs=False,
-# )
-
-llm = ChatDeepSeek(
-    model="deepseek-chat",
-    temperature=0,
-    max_tokens=None,
-    timeout=None,
-    max_retries=2,
-)
+llm = ChatOllama(model=MODEL, temperature=0.3)
+# embeddings = OllamaEmbeddings(model="deepseek-r1")
 
 db = Chroma(
     collection_name="ZE_TEST",
     # embedding_function=embeddings,
     # host="0.0.0.0",
     host=os.environ["CHROMA"],
-    port="8070",
+    port="8070"
 )
 
 # gigachat = GigachatSession()
@@ -55,7 +42,6 @@ async def get_llm_response(prompt: str):
 
 
 def local_request(prompt):
-    global llm
     qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=db.as_retriever())
     res = qa_chain.invoke({"query": prompt})
     return res["result"]
