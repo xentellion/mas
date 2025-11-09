@@ -176,7 +176,9 @@ class MainWindow(QMainWindow):
         super().__init__(*args, **kwargs)
         uic.loadUi("main.ui", self)
 
-        self.ren = self.start_simulation(STEP)
+        self.setWindowTitle("AirportSim")
+
+        self.ren = self.prepare_sim(STEP)
 
         self.create_mpl_layout()
         self.mpl_show.setLayout(self.layout)
@@ -188,14 +190,24 @@ class MainWindow(QMainWindow):
 
         self.lock_buttons(True)
 
+        try:
+            with open("data/supported_models.json", "r", encoding="UTF-8") as f:
+                self.models = json.load(f)["models"]
+        except FileNotFoundError as e:
+            logging.error("Supported models not found: %s", e)
+        else:
+            for item in self.models:
+                self.select_model.addItem(item)
+
         self.start_button.clicked.connect(self.start_sim)
         self.restart_button.clicked.connect(self.restart_sim)
         self.pause_button.clicked.connect(self.pause_sim)
         self.stop_button.clicked.connect(self.stop_sim)
+        self.select_model.currentTextChanged.connect(self.select_model_method)
 
         self.actionQuit.triggered.connect(self.quit_app)
 
-    def start_simulation(self, step):
+    def prepare_sim(self, step):
         load_prompts()
         ren = AreaRender(step, False)
         return ren
@@ -227,7 +239,7 @@ class MainWindow(QMainWindow):
         self.worker.kill()
 
         self.ren.fig.clf()
-        self.ren = self.start_simulation(STEP)
+        self.ren = self.prepare_sim(STEP)
 
         self.create_mpl_layout()
         temp = QWidget().setLayout(self.mpl_show.layout())
@@ -247,6 +259,11 @@ class MainWindow(QMainWindow):
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.toolbar)
         self.layout.addWidget(self.ren)
+
+    def select_model_method(self):
+        os.environ["LLM"] = f"http://localhost:{self.models[self.select_model.currentText()]}"
+        os.environ["LLM_SELECTED"] = self.select_model.currentText()
+        logging.info("Target LLM changed")
 
     @pyqtSlot()
     def agent_deployed(self, agent: Agent):

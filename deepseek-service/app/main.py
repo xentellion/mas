@@ -5,19 +5,13 @@ import sys
 __import__("pysqlite3")
 sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
 
-from dotenv import load_dotenv
 from fastapi import FastAPI
-from langchain_ollama import ChatOllama, OllamaEmbeddings
+from langchain_ollama import ChatOllama
 from langchain_classic.chains import RetrievalQA
 from langchain_chroma.vectorstores import Chroma
 
 
-# load_dotenv()
-# TOKEN = os.getenv("DEEPSEEK_API_KEY")
-MODEL=os.getenv("MODEL")
-
-llm = ChatOllama(model=MODEL, temperature=0.3)
-# embeddings = OllamaEmbeddings(model="deepseek-r1")
+llm: ChatOllama = None
 
 db = Chroma(
     collection_name="ZE_TEST",
@@ -37,7 +31,9 @@ async def index():
 
 
 @app.post("/")
-async def get_llm_response(prompt: str):
+async def get_llm_response(prompt: str, model: str = None):
+    global llm
+    llm = ChatOllama(model=model, temperature=0.3)
     return {"response": local_request(prompt)}
 
 

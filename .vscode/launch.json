@@ -57,7 +57,8 @@
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/agent-1",
             "env": {
-                "LLM": "http://localhost:8000",
+                "LLM": "http://localhost:8001",
+                "LLM_SELECTED": "gigachat",
                 "LOG_PROMPTS": "True",
                 "TPS": "15"
             },

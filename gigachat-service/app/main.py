@@ -42,7 +42,7 @@ async def index():
 
 
 @app.post("/")
-async def get_llm_response(prompt: str):
+async def get_llm_response(prompt: str, model):
     return {"response": local_request(prompt)}
 
 

@@ -31,7 +31,7 @@ services:
     environment:
       - CHROMA=chromadb
     ports:
-      - "8000:81"
+      - "8001:81"
     restart: unless-stopped
     networks:
       - internal  

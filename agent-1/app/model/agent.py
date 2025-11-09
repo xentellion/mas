@@ -93,7 +93,10 @@ class Agent:
             prompt = self.__prompt.format(". ".join(self.status))
             path = requests.post(
                 os.getenv("LLM"),
-                params={"prompt": prompt},
+                params={
+                    "prompt": prompt,
+                    "model": os.getenv("LLM_SELECTED"),
+                },
                 timeout=120,
             ).json()["response"]
         except requests.HTTPError as e:
