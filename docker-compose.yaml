@@ -1,13 +1,18 @@
 services:
-  # baseline:
-  #   build: 
-  #     context: .
-  #   container_name: baseline
-  #   # user: 1000:1000
-  #   volumes:
-  #     - type: bind
-  #       source: data
-  #       target: /workdir/data
+# cloud LLMs
+  gigachat:
+    build: ./gigachat-service
+    command: uvicorn app.main:app --reload --host 0.0.0.0 --port 81
+    container_name: gigachat
+    environment:
+      - CHROMA=chromadb
+    ports:
+      - "8001:81"
+    restart: unless-stopped
+    networks:
+      - internal  
+
+# local LLMs
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
@@ -24,18 +29,6 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-  gigachat:
-    build: ./gigachat-service
-    command: uvicorn app.main:app --reload --host 0.0.0.0 --port 81
-    container_name: gigachat
-    environment:
-      - CHROMA=chromadb
-    ports:
-      - "8001:81"
-    restart: unless-stopped
-    networks:
-      - internal  
-      
   deepseek:
     build: ./deepseek-service
     command: uvicorn app.main:app --reload --host 0.0.0.0 --port 82
@@ -50,25 +43,42 @@ services:
       # - MODEL=llama3.1
       # - MODEL=mistral
     ports:
-      - "8000:82"
+      - "8002:82"
     restart: unless-stopped
     networks:
       - internal
     depends_on:
       - ollama
-  
+# Vector storage and analytics
   zipkin:
     image: openzipkin/zipkin
+    container_name: zipkin
     ports:
       - "9411:9411"
-    depends_on: [otel-collector]
     networks:
       - internal
+    restart: unless-stopped
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.111.0
+    container_name: otel-collector
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
-      - ${PWD}/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+      - ${PWD}/config/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      - zipkin
+    networks:
+      - internal
+    restart: unless-stopped
+  prometheus:
+    image: prom/prometheus:latest
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ${PWD}/config/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
     networks:
       - internal
   chromadb:
@@ -76,21 +86,21 @@ services:
     container_name: chromadb
     environment:
       - IS_PERSISTENT=TRUE   
+      - CHROMA_OPEN_TELEMETRY__ENDPOINT=http://otel-collector:4317/
+      - CHROMA_OPEN_TELEMETRY__SERVICE_NAME=chromadb
     ports:
       - "8070:8070"
     volumes:
-      - type: bind
-        source: ./data/chroma
-        target: /data
-      - type: bind
-        source: ./config/chroma/config.yaml
-        target: /config.yaml
+      - ./data/chroma:/data
+      - ./config/chroma/config.yaml:/config.yaml
     depends_on:
       - otel-collector
       - zipkin
+      - prometheus
     networks:
       - internal
     restart: unless-stopped
 
 networks:
   internal:
+    driver: bridge

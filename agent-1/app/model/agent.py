@@ -1,5 +1,6 @@
 """Agent"""
 
+import datetime
 import logging
 import os
 
@@ -89,8 +90,11 @@ class Agent:
         if self.__current_task is not None:
             self.tasks.appendleft(self.__current_task)
             self.__current_task = None
+        tm = datetime.datetime.now()
         try:
             prompt = self.__prompt.format(". ".join(self.status))
+            logging.info("%s -> %s", self.name, prompt)
+            print(os.getenv("LLM_SELECTED"))
             path = requests.post(
                 os.getenv("LLM"),
                 params={
@@ -106,7 +110,12 @@ class Agent:
             logging.error(e)
             return
         if LOG_PROMPTS is True:
-            logging.info("%s -> %s [%s]", self.name, path, prompt)
+            logging.info(
+                "%s -> [%s] in %s",
+                self.name,
+                path,
+                datetime.datetime.now() - tm,
+            )
         # Agent only requests walking tasks as other tasks are just
         # sitting around with different flavors
         task = agent_task.WalkingTask(path.lower().strip(), interactables)

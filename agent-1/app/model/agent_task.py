@@ -13,9 +13,9 @@ class AgentTask(ABC):
     """Generic task"""
 
     def __init__(self, status: str = None):
-        self.state = None
-        self.priority = False
-        self.status = status
+        self.state: State = None
+        self.priority: bool = False
+        self.status: str = status
 
     @abstractmethod
     def tick(self):

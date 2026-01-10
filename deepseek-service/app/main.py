@@ -4,24 +4,29 @@ import sys
 # To fix wrong Sqlite3 error in Chroma
 __import__("pysqlite3")
 sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
+import chromadb
 
 from fastapi import FastAPI
 from langchain_ollama import ChatOllama
+from langchain_huggingface import HuggingFaceEmbeddings
+
 from langchain_classic.chains import RetrievalQA
 from langchain_chroma.vectorstores import Chroma
 
+llm: ChatOllama = "deepseek-r1"
+# llm: ChatOllama = None
 
-llm: ChatOllama = None
+embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
-db = Chroma(
+vector_store = Chroma(
+    client=chromadb.HttpClient(
+        host=os.environ["CHROMA"],
+        port=8070,
+    ),
     collection_name="ZE_TEST",
-    # embedding_function=embeddings,
-    # host="0.0.0.0",
-    host=os.environ["CHROMA"],
-    port="8070"
+    embedding_function=embeddings,
 )
 
-# gigachat = GigachatSession()
 app = FastAPI()
 
 
@@ -38,6 +43,8 @@ async def get_llm_response(prompt: str, model: str = None):
 
 
 def local_request(prompt):
-    qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=db.as_retriever())
+    qa_chain = RetrievalQA.from_chain_type(
+        llm=llm, retriever=vector_store.as_retriever()
+    )
     res = qa_chain.invoke({"query": prompt})
     return res["result"]

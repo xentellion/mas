@@ -15,13 +15,18 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QGroupBox" name="groupBox">
+    <widget class="QGroupBox" name="agent_data">
      <property name="title">
       <string>Agent_name</string>
      </property>
      <layout class="QFormLayout" name="formLayout">
       <item row="0" column="0">
        <widget class="QLabel" name="label">
+        <property name="font">
+         <font>
+          <bold>true</bold>
+         </font>
+        </property>
         <property name="text">
          <string>Name</string>
         </property>
@@ -29,8 +34,13 @@
       </item>
       <item row="1" column="0">
        <widget class="QLabel" name="label_2">
+        <property name="font">
+         <font>
+          <bold>true</bold>
+         </font>
+        </property>
         <property name="text">
-         <string>TextLabel</string>
+         <string>Target</string>
         </property>
        </widget>
       </item>
@@ -42,7 +52,7 @@
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="QLabel" name="label_4">
+       <widget class="QLabel" name="target_label">
         <property name="text">
          <string>TextLabel</string>
         </property>

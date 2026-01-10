@@ -6,6 +6,8 @@ import json
 import time
 import logging
 
+from copy import deepcopy
+
 # import threading
 
 # from time import sleep
@@ -13,7 +15,14 @@ import logging
 # import matplotlib.pyplot as plt
 import requests
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
-from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QPushButton, QWidget
+from PyQt6.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QVBoxLayout,
+    QPushButton,
+    QWidget,
+    QLabel,
+)
 from PyQt6 import uic
 from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal, pyqtSlot
 
@@ -50,9 +59,14 @@ def load_prompts(path="data/prompt.json"):
 
 
 class WorkerSignals(QObject):
-    # progress = pyqtSignal(int)
     new_agent = pyqtSignal(Agent)
     new_plane = pyqtSignal(Plane)
+
+    agent_updated = pyqtSignal(Agent)
+    plane_updated = pyqtSignal(str)
+
+    agent_removed = pyqtSignal(str)
+    plane_removed = pyqtSignal(str)
 
 
 class SimWorker(QRunnable):
@@ -68,9 +82,6 @@ class SimWorker(QRunnable):
     def run(self):
         logging.info("Simulation started")
         self.main(self.ren, STEP)
-        # print("Thread start")
-        # time.sleep(5)
-        # print("Thread complete")
 
     def load_starting_positions(self, path):
         prepared_agents = []
@@ -137,6 +148,7 @@ class SimWorker(QRunnable):
                     new_ag = point.spawn_agent(ren.graph, ren.interactables, step)
                     if new_ag is not None:
                         ren.ax.add_patch(new_ag.ui_object)
+                        self.signals.new_agent.emit(new_ag)
                         agents.append(new_ag)
 
             for a in agents:
@@ -149,11 +161,14 @@ class SimWorker(QRunnable):
                                 ren.interactables_mapping[a.position]
                             ]
                             a.add_task(inter.get_task(a))
+                    # self.signals.agent_updated.emit(a)
                 else:
                     if isinstance(a.current_task, agent_task.WalkingTask):
                         a.move(ren.graph.get_node(new_pos).point.xy, new_pos)
 
-            agents = [x for x in agents if x.state is not State.COMPLETE]
+            for x in filter(lambda x: x.state is State.COMPLETE, agents):
+                self.signals.agent_removed.emit(x.name)
+            agents = list(filter(lambda x: x.state is not State.COMPLETE, agents))
 
             try:
                 ren.fig.canvas.draw()
@@ -169,7 +184,23 @@ class SimWorker(QRunnable):
 
     def kill(self):
         self.is_killed = True
-        logging.info("Simulation stopped")
+        logging.info("Simulation stopped\n" + "-" * 40)
+
+
+class AgentPlate(QWidget):
+    def __init__(self, name, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        uic.loadUi("agent.ui", self)
+        self.__name = name
+        self.agent_data.setTitle(str(name))
+
+    @property
+    def name(self):
+        return self.__name
+
+    @name.setter
+    def name(self, name):
+        self.__name == name
 
 
 class MainWindow(QMainWindow):
@@ -205,8 +236,11 @@ class MainWindow(QMainWindow):
         self.pause_button.clicked.connect(self.pause_sim)
         self.stop_button.clicked.connect(self.stop_sim)
         self.select_model.currentTextChanged.connect(self.select_model_method)
+        self.select_model.setPlaceholderText(f"Default: {os.environ["LLM_SELECTED"]}")
 
         self.actionQuit.triggered.connect(self.quit_app)
+
+        self.agent_plates = {}
 
     def prepare_sim(self, step):
         load_prompts()
@@ -216,15 +250,21 @@ class MainWindow(QMainWindow):
     def start_sim(self):
         try:
             requests.get(os.getenv("LLM"), timeout=5).status_code
-        except:
+        except Exception as e:
             self.statusbar.showMessage("LLM is not responding")
             self.statusbar.setStyleSheet("color: red;")
+            logging.error(e)
             return
         self.statusbar.showMessage("Connection established")
-        self.statusbar.setStyleSheet("colorGroup: SystemPalette.Active; color: default;")
+        self.statusbar.setStyleSheet(
+            "colorGroup: SystemPalette.Active; color: default;"
+        )
 
         self.lock_buttons(False)
         self.worker = SimWorker(self.ren)
+        self.worker.signals.new_agent.connect(self.agent_deployed)
+        self.worker.signals.agent_updated.connect(self.agent_updated)
+        self.worker.signals.agent_removed.connect(self.agent_removed)
         self.threadpool.start(self.worker)
 
     def restart_sim(self):
@@ -244,8 +284,9 @@ class MainWindow(QMainWindow):
             return
         if self.worker.is_paused:
             self.pause_sim()
-
         self.lock_buttons(True)
+        self.ren.fig.canvas.draw()
+        self.ren.fig.canvas.flush_events()
         self.worker.kill()
 
         self.ren.fig.clf()
@@ -256,8 +297,10 @@ class MainWindow(QMainWindow):
         del temp
 
         self.mpl_show.setLayout(self.layout)
-        self.ren.fig.canvas.draw()
-        self.ren.fig.canvas.flush_events()
+
+        for x in deepcopy(list(self.agent_plates.keys())):
+            self.agent_removed(x)
+        self.agent_plates = {}
 
     def lock_buttons(self, state: bool):
         self.start_button.setEnabled(state)
@@ -271,18 +314,29 @@ class MainWindow(QMainWindow):
         self.layout.addWidget(self.ren)
 
     def select_model_method(self):
-        os.environ["LLM"] = f"http://localhost:{self.models[self.select_model.currentText()]}"
+        os.environ["LLM"] = (
+            f"http://localhost:{self.models[self.select_model.currentText()]}"
+        )
         os.environ["LLM_SELECTED"] = self.select_model.currentText()
         logging.info("Target LLM changed")
 
-    @pyqtSlot()
     def agent_deployed(self, agent: Agent):
-        # self.agents_list.
-        pass
+        if agent.name in self.agent_plates:
+            logging.warning("Creating agent duplicate")
+            return
+        self.agent_plates[agent.name] = AgentPlate(name=agent.name)
+        self.agents_list.layout().insertWidget(0, self.agent_plates[agent.name])
 
-    @pyqtSlot()
-    def agent_removed(self, agent: Agent):
-        pass
+    def agent_removed(self, agent: str):
+        target = self.agent_plates.pop(agent, None)
+        if target:
+            self.agents_list.layout().removeWidget(target)
+
+    def agent_updated(self, agent: Agent):
+        print("up")
+        target = self.agent_plates.get(agent.name, None)
+        if target:
+            target.target_label = agent.current_task.status
 
     def quit_app(self):
         QApplication.quit()

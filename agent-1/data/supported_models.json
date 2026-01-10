@@ -1,11 +1,11 @@
 {
     "models": {
-        "gigachat": 8001,
-        "deepseek-r1": 8000,
-        "gpt-oss": 8000,
-        "qwen3-vl": 8000,
-        "gemma3:12b": 8000,
-        "llama3.1": 8000,
-        "mistral": 8000
+        "deepseek-r1": 8002,
+        "gpt-oss": 8002,
+        "qwen3-vl": 8002,
+        "gemma3:12b": 8002,
+        "llama3.1": 8002,
+        "mistral": 8002,
+        "gigachat": 8001
     }
 }
