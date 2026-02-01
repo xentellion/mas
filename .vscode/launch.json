@@ -6,7 +6,7 @@
             "type": "debugpy",
             "request": "launch",
             "module": "uvicorn",
-            "python": "${workspaceFolder}/gigachat-service/venv-gigachat/bin/python",
+            "python": "${workspaceFolder}/gigachat-service/venv-gigachat/bin/python3.13",
             "cwd": "${workspaceFolder}/gigachat-service",
             "args": [
                 "app.main:app",
@@ -26,10 +26,10 @@
             "type": "debugpy",
             "request": "launch",
             "module": "uvicorn",
-            "python": "${workspaceFolder}/deepseek-service/venv-deepseek/bin/python",
+            "python": "${workspaceFolder}/deepseek-service/venv-deepseek/bin/python3.13",
             "cwd": "${workspaceFolder}/deepseek-service",
             "args": [
-                "app.main:app",
+                "app.__main__:app",
                 "--reload",
                 "--host",
                 "0.0.0.0",
@@ -45,7 +45,7 @@
             "name": "ChromaDB Debug",
             "type": "debugpy",
             "request": "launch",
-            "python": "${workspaceFolder}/chromadb-service/venv-chroma/bin/python",
+            "python": "${workspaceFolder}/chromadb-service/venv-chroma/bin/python3.13",
             "program": "${workspaceFolder}/chromadb-service/app/__main__.py",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/chromadb-service"
@@ -62,7 +62,8 @@
                 "LLM": "http://localhost:8002",
                 "LLM_SELECTED": "deepseek-r1",
                 "LOG_PROMPTS": "True",
-                "TPS": "15"
+                "TPS": "15",
+                "RMQ": "http://localhost:5672"
             },
             // "preLaunchTask": "Start Containers"
         }

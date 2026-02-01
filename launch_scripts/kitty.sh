@@ -4,7 +4,12 @@ if [[ ! $CHROMA ]]; then
     kitty -e docker compose up chromadb &
 fi
 
-GIGACHAT=$(docker ps -q -f name="gigachat")
+# GIGACHAT=$(docker ps -q -f name="gigachat")
+# if [[ ! $GIGACHAT ]]; then
+#     kitty -e docker compose up gigachat &
+# fi
+
+GIGACHAT=$(docker ps -q -f name="deepseek")
 if [[ ! $GIGACHAT ]]; then
-    kitty -e docker compose up gigachat &
+    kitty -e docker compose up deepseek &
 fi

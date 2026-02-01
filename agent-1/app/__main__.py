@@ -5,28 +5,23 @@ import sys
 import json
 import time
 import logging
-
+from datetime import datetime
 from copy import deepcopy
 
-# import threading
-
-# from time import sleep
-# https://stackoverflow.com/questions/33969053/how-to-pause-play-a-thread-in-pyqt5
-# import matplotlib.pyplot as plt
 import requests
-from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
+import pika
+
 from PyQt6.QtWidgets import (
     QApplication,
     QMainWindow,
     QVBoxLayout,
     QPushButton,
     QWidget,
-    QLabel,
+    QMessageBox,
+    # QLabel,
 )
 from PyQt6 import uic
 from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal, pyqtSlot
-
-# from PyQt6.QtCore import QThread
 
 from model import agent_task, interactable
 from model.agent import Agent, State
@@ -37,14 +32,33 @@ from model.prepared_items import PreparedPlane, PreparedAgent
 
 
 TPS = 1 / float(os.environ["TPS"])
+STEP = 1
+
 logging.basicConfig(
     level=logging.INFO,
-    filename="py_log.log",
+    filename=f"logs/{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log",
     filemode="a+",
     format="%(asctime)s:%(levelname)s:%(message)s",
 )
 
-STEP = 1
+
+def delete_oldest_logs(path: str = "logs", logs_count: int = 10):
+    files = []
+    for filename in os.listdir(path):
+        filepath = os.path.join(path, filename)
+        if os.path.isfile(filepath):
+            files.append(filepath)
+    if not files:
+        return
+    if len(files) < logs_count:
+        return
+    files.sort(key=os.path.getctime, reverse=True)
+    for file in files[logs_count - 1 : -2]:
+        try:
+            os.remove(file)
+            logging.info(f"Oldest log cleared: {file}")
+        except OSError as e:
+            logging.error(f"Error deleting file {file}: {e}")
 
 
 def load_prompts(path="data/prompt.json"):
@@ -60,12 +74,12 @@ def load_prompts(path="data/prompt.json"):
 
 class WorkerSignals(QObject):
     new_agent = pyqtSignal(Agent)
-    new_plane = pyqtSignal(Plane)
-
     agent_updated = pyqtSignal(Agent)
-    plane_updated = pyqtSignal(str)
-
     agent_removed = pyqtSignal(str)
+    agent_error = pyqtSignal(str)
+
+    new_plane = pyqtSignal(Plane)
+    plane_updated = pyqtSignal(str)
     plane_removed = pyqtSignal(str)
 
 
@@ -120,7 +134,8 @@ class SimWorker(QRunnable):
         )
         tick_count = 0
 
-        while True:
+        sim_event_loop = True
+        while sim_event_loop:
             if self.is_paused:
                 time.sleep(0.1)
                 continue
@@ -147,12 +162,17 @@ class SimWorker(QRunnable):
                 if isinstance(point, (interactable.Entrance, interactable.Gate)):
                     new_ag = point.spawn_agent(ren.graph, ren.interactables, step)
                     if new_ag is not None:
-                        ren.ax.add_patch(new_ag.ui_object)
+                        # ren.ax.add_patch(new_ag.ui_object)
                         self.signals.new_agent.emit(new_ag)
                         agents.append(new_ag)
 
             for a in agents:
-                new_pos = a.tick(ren.graph, ren.interactables)
+                try:
+                    new_pos = a.tick(ren.graph, ren.interactables)
+                except AttributeError as e:
+                    logging.error(f"Can't process agent tick: {e}")
+                    self.signals.agent_error.emit(e)
+                    break
                 if new_pos is None:
                     a.change_task(ren.graph)
                     if a.current_task is None and a.state is State.WALKING:
@@ -170,14 +190,17 @@ class SimWorker(QRunnable):
                 self.signals.agent_removed.emit(x.name)
             agents = list(filter(lambda x: x.state is not State.COMPLETE, agents))
 
-            try:
-                ren.fig.canvas.draw()
-                ren.fig.canvas.flush_events()
-            except Exception as e:
-                logging.error(e)
+            self.ren.agent_items.setData(
+                spots=[
+                    {"pos": tuple(ren.graph.get_node(a.position).xy)} for a in agents
+                ]
+            )
+            self.ren.update()
 
             tick_count += 1
-            time.sleep(TPS - (time.time() % TPS))
+            time_delta = TPS - (time.time() % TPS)
+            if time_delta > 0:
+                time.sleep(time_delta)
 
     def toggle_pause(self):
         self.is_paused = not self.is_paused
@@ -207,15 +230,13 @@ class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         uic.loadUi("main.ui", self)
-
         self.setWindowTitle("AirportSim")
 
-        self.ren = self.prepare_sim(STEP)
+        self.connection = None
+        self.ren: AreaRender = self.prepare_sim(STEP)
 
         self.create_mpl_layout()
         self.mpl_show.setLayout(self.layout)
-
-        self.paused = False
 
         self.threadpool = QThreadPool()
         self.worker = None
@@ -231,6 +252,8 @@ class MainWindow(QMainWindow):
             for item in self.models:
                 self.select_model.addItem(item)
 
+        self.paused = False
+
         self.start_button.clicked.connect(self.start_sim)
         self.restart_button.clicked.connect(self.restart_sim)
         self.pause_button.clicked.connect(self.pause_sim)
@@ -238,9 +261,20 @@ class MainWindow(QMainWindow):
         self.select_model.currentTextChanged.connect(self.select_model_method)
         self.select_model.setPlaceholderText(f"Default: {os.environ["LLM_SELECTED"]}")
 
-        self.actionQuit.triggered.connect(self.quit_app)
+        self.actionQuit.triggered.connect(self.__quit_app)
 
         self.agent_plates = {}
+
+        # Error pop up message
+        self.agent_error_message = QMessageBox(self)
+        self.agent_error_message.setIcon = QMessageBox.Icon.Critical
+        self.agent_error_message.setWindowTitle("Error has occured")
+        self.agent_error_message.setText(
+            "A mistake was encontered while processing agents.\n\nDetails:\n{0}"
+        )
+        self.agent_error_message.setStandardButtons(QMessageBox.StandardButton.Ok)
+
+        self.select_model_method()
 
     def prepare_sim(self, step):
         load_prompts()
@@ -250,21 +284,26 @@ class MainWindow(QMainWindow):
     def start_sim(self):
         try:
             requests.get(os.getenv("LLM"), timeout=5).status_code
+            self.connection = pika.BlockingConnection(
+                pika.ConnectionParameters(host="localhost")
+            )
         except Exception as e:
-            self.statusbar.showMessage("LLM is not responding")
-            self.statusbar.setStyleSheet("color: red;")
+            self.statusBar().showMessage("LLM is not responding")
+            self.statusBar().setStyleSheet("color: red;")
             logging.error(e)
             return
-        self.statusbar.showMessage("Connection established")
-        self.statusbar.setStyleSheet(
-            "colorGroup: SystemPalette.Active; color: default;"
-        )
+        self.statusBar().showMessage("Connection established")
+        self.statusBar().setStyleSheet("")
 
         self.lock_buttons(False)
         self.worker = SimWorker(self.ren)
-        self.worker.signals.new_agent.connect(self.agent_deployed)
-        self.worker.signals.agent_updated.connect(self.agent_updated)
-        self.worker.signals.agent_removed.connect(self.agent_removed)
+        self.worker.signals.new_agent.connect(self.__agent_deployed)
+        self.worker.signals.agent_updated.connect(self.__agent_updated)
+        self.worker.signals.agent_removed.connect(self.__agent_removed)
+        self.worker.signals.agent_error.connect(self.__agent_error)
+
+        # channel = self.connection.channel()
+        # channel.exchange_declare(exchange="logs", exchange_type="fanout")
         self.threadpool.start(self.worker)
 
     def restart_sim(self):
@@ -285,22 +324,16 @@ class MainWindow(QMainWindow):
         if self.worker.is_paused:
             self.pause_sim()
         self.lock_buttons(True)
-        self.ren.fig.canvas.draw()
-        self.ren.fig.canvas.flush_events()
         self.worker.kill()
+        del self.worker
 
-        self.ren.fig.clf()
-        self.ren = self.prepare_sim(STEP)
-
-        self.create_mpl_layout()
-        temp = QWidget().setLayout(self.mpl_show.layout())
-        del temp
-
-        self.mpl_show.setLayout(self.layout)
+        self.ren.agent_items.clear()
 
         for x in deepcopy(list(self.agent_plates.keys())):
-            self.agent_removed(x)
+            self.__agent_removed(x)
         self.agent_plates = {}
+        print(self.connection.is_open)
+        self.connection.close()
 
     def lock_buttons(self, state: bool):
         self.start_button.setEnabled(state)
@@ -308,43 +341,67 @@ class MainWindow(QMainWindow):
             button.setEnabled(not state)
 
     def create_mpl_layout(self):
-        self.toolbar = NavigationToolbar(self.ren, self)
         self.layout = QVBoxLayout()
-        self.layout.addWidget(self.toolbar)
         self.layout.addWidget(self.ren)
 
     def select_model_method(self):
-        os.environ["LLM"] = (
-            f"http://localhost:{self.models[self.select_model.currentText()]}"
-        )
-        os.environ["LLM_SELECTED"] = self.select_model.currentText()
-        logging.info("Target LLM changed")
+        try:
+            os.environ["LLM"] = (
+                f"http://localhost:{self.models[self.select_model.currentText()]}"
+            )
+            os.environ["LLM_SELECTED"] = self.select_model.currentText()
+        except KeyError:
+            logging.warning("Can't change the model. Using last or default value")
+        try:
+            response = requests.post(
+                f"{os.getenv("LLM")}/swap",
+                params={
+                    "model": os.getenv("LLM_SELECTED"),
+                },
+                timeout=120,
+            ).json()["response"]
+        except requests.exceptions.ConnectionError as e:
+            logging.error(f"Cannot connect to models: {e}")
+            response = None
+        if not response:
+            logging.error("Can't change an LLM")
+        else:
+            logging.info("Target LLM changed")
 
-    def agent_deployed(self, agent: Agent):
+    def __agent_deployed(self, agent: Agent):
         if agent.name in self.agent_plates:
             logging.warning("Creating agent duplicate")
             return
         self.agent_plates[agent.name] = AgentPlate(name=agent.name)
         self.agents_list.layout().insertWidget(0, self.agent_plates[agent.name])
 
-    def agent_removed(self, agent: str):
+    def __agent_removed(self, agent: str):
         target = self.agent_plates.pop(agent, None)
         if target:
             self.agents_list.layout().removeWidget(target)
 
-    def agent_updated(self, agent: Agent):
-        print("up")
+    def __agent_updated(self, agent: Agent):
         target = self.agent_plates.get(agent.name, None)
         if target:
             target.target_label = agent.current_task.status
 
-    def quit_app(self):
+    def __agent_error(self, text):
+        temp = self.agent_error_message
+        temp.setText(temp.text().format(text))
+        temp.exec()
+
+    def __quit_app(self):
         QApplication.quit()
 
 
-if __name__ == "__main__":
+def main():
     logging.info("\n--------------Initializing--------------")
     app = QApplication(sys.argv)
     w = MainWindow()
     w.show()
     sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    delete_oldest_logs()
+    main()

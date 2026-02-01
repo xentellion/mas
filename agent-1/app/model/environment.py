@@ -4,14 +4,12 @@ import json
 import logging
 import pickle
 
-# from itertools import chain
-
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.path import Path
-from matplotlib.patches import PathPatch
-from matplotlib.collections import PatchCollection
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
+import pyqtgraph as pg
+
+from pyqtgraph.Qt import QtCore, QtGui
+from PyQt6.QtWidgets import QGraphicsPathItem
+from PyQt6.QtCore import Qt
 from shapely.geometry import Polygon, MultiPolygon, LineString
 
 from model.pathfinder import Pathfinder
@@ -23,27 +21,63 @@ from model.graph import Graph
 GRAPH_PATH = "data/graph.bin"
 
 
-class AreaRender(FigureCanvasQTAgg):
-    @execution_timer("Building and rendering area")
-    def __init__(self, step=1, draw_grid=True):
-        self.fig, self.ax = plt.subplots(1, 1)
-        super().__init__(self.fig)
-
+class AreaRender(pg.PlotWidget):
+    def __init__(
+        self,
+        step=1,
+        draw_grid=False,
+        parent=None,
+        background="white",
+    ):
+        super().__init__(parent, background)
         self.step = step
         self.graph = None
         self.extra_connections = None
-        self.flats = self.load_walls()
-        # plt.ion()
+        self.flats = self._load_walls()
+
+        pg.setConfigOptions(antialias=True)
+
+        self.setLabel("left", "Y Axis")
+        self.setLabel("bottom", "X Axis")
+        self.setAspectLocked(lock=True, ratio=1)
+        self.showGrid(x=draw_grid, y=draw_grid)
+        self.viewBox = self.plotItem.getViewBox()
+
         self.edges_drawn = []
         self.interactables_mapping, self.interactables = None, None
         self.create_area()
         self.draw_intercatables()
         if draw_grid:
+            # Atrociously bad performance (edges are drawn twice)
+            # Might tackle, don't care tho
             self.draw_edges()
             self.draw_transitions()
 
+        self.highlight_points = pg.ScatterPlotItem(
+            size=self.step - 0.1,
+            pen=pg.mkPen(None),
+            brush=pg.mkBrush(0, 0, 255),
+            hoverable=True,
+            hoverBrush=pg.mkBrush(0, 255, 255),
+            pxMode=False,
+        )
+        self.highlight_points.setZValue(2)
+        self.points = []
+        self.addItem(self.highlight_points)
+
+        self.agent_items = pg.ScatterPlotItem(
+            size=self.step - 0.1,
+            pen=pg.mkPen("black"),
+            brush=pg.mkBrush("red"),
+            hoverable=True,
+            hoverBrush=pg.mkBrush(0, 255, 255),
+            pxMode=False,
+        )
+        self.agent_items.setZValue(3)
+        self.addItem(self.agent_items)
+
     @execution_timer("Load walls data")
-    def load_walls(self, path="data/walls.json") -> list[Wall]:
+    def _load_walls(self, path="data/walls.json") -> list[Wall]:
         flats = []
         try:
             with open(path, "r", encoding="UTF-8") as f:
@@ -60,31 +94,20 @@ class AreaRender(FigureCanvasQTAgg):
             return
         return flats
 
-    def load_graph(self, path: str) -> Graph:
-        with open(path, "rb") as f:
-            return pickle.load(f)
-
-    def save_graph(self, path: str):
-        with open(path, "wb") as f:
-            pickle.dump(self.graph, f, protocol=pickle.HIGHEST_PROTOCOL)
-
     def create_area(self, path: str = None, rebuild: bool = False):
         if path is not None:
             return
-        plt.connect("button_press_event", self.on_click)
-        # self.fig.suptitle("Airport")
-
+        # plt.connect("button_press_event", self.on_click)
         area = self.draw_walkable_area()
-        self.draw_map()
 
         if not self.flats:
             return
         nodes = Pathfinder.create_node_grid(area, self.step)
         if not os.path.isfile(GRAPH_PATH) or rebuild:
             self.graph = Pathfinder.construct_edges(area, nodes, self.step)
-            self.save_graph(GRAPH_PATH)
+            self._save_graph(GRAPH_PATH)
         else:
-            self.graph = self.load_graph(GRAPH_PATH)
+            self.graph = self._load_graph(GRAPH_PATH)
 
         self.interactables_mapping, self.interactables = (
             Pathfinder.create_interactables(self.flats, self.graph)
@@ -93,34 +116,19 @@ class AreaRender(FigureCanvasQTAgg):
             self.graph, self.extra_connections
         )
 
-    @execution_timer("Draw map")
-    def draw_map(self, show_scale: bool = False):
-        self.ax.set_aspect("equal")
-        self.ax.xaxis.set_major_locator(plt.MultipleLocator(1))
-        self.ax.yaxis.set_major_locator(plt.MultipleLocator(1))
-
-        try:
-            area = self.flats[0].borders.boundary
-        except IndexError as e:
-            logging.error("Map building error: %s", e)
-            return
-        for x in self.flats[1:]:
-            area = area.union(x.borders.boundary)
-        for line in area.geoms:
-            self.ax.plot(*line.xy, color="black", linewidth=1)
-
-        if not show_scale:
-            for label in self.ax.get_xticklabels():
-                label.set_visible(False)
-            for label in self.ax.get_yticklabels():
-                label.set_visible(False)
-
     @execution_timer("Draw walkable area")
     def draw_walkable_area(self):
         if self.flats is None:
             return
-        self.ax.plot(*self.flats[0].borders.exterior.xy, color="black")
-        # total_area = MultiPolygon(x.borders for x in self.flats[1:])
+        self._draw_wall(self.flats[0].borders)
+        cords = np.array(self.flats[0].borders.exterior.coords.xy)
+        x_d, y_d = np.max(cords[0]), np.max(cords[1])
+        self.setLimits(
+            xMin=-x_d * 0.5,
+            yMin=-y_d * 0.5,
+            xMax=x_d * 1.5,
+            yMax=y_d * 1.5,
+        )
         total_area = []
         for room in self.flats[1:]:
             walls = room.borders
@@ -146,36 +154,19 @@ class AreaRender(FigureCanvasQTAgg):
                 )
                 walls = walls.difference(thin_wall)
             total_area.append(walls)
-            self.plot_polygon(walls, facecolor="green", edgecolor="black")
+            self._draw_wall(walls, True)
 
         return MultiPolygon(total_area)
 
-    def plot_polygon(self, poly, **kwargs):
-        path = Path.make_compound_path(
-            Path(np.asarray(poly.exterior.coords)[:, :2]),
-            *[Path(np.asarray(ring.coords)[:, :2]) for ring in poly.interiors],
-        )
-
-        patch = PathPatch(path, **kwargs)
-        collection = PatchCollection([patch], **kwargs)
-
-        self.ax.add_collection(collection, autolim=True)
-        self.ax.autoscale_view()
-        return collection
-
     def draw_intercatables(self):
         for room in self.interactables.values():
-            self.ax.plot(*room.area.exterior.xy, color="red")
-
-    def draw_nodes(self, ax, nodes):
-        # Take list of nodes, convert to tuple of X's of Y's and draw on axis
-        ax.scatter(*zip(*((point.x, point.y) for point in nodes)), color="black")
+            self._draw_wall(room.area, color="red")
 
     @execution_timer("Draw coordinate grid")
     def draw_edges(self):
         for grid in self.graph.edges:
             for con in grid:
-                self.ax.plot(*con.xy, color="#999999", linewidth=1)
+                self.plot(*con.xy, pen="#999999")
 
     @execution_timer("Draw transitions")
     def draw_transitions(self):
@@ -183,7 +174,7 @@ class AreaRender(FigureCanvasQTAgg):
             con = LineString(
                 [self.graph.get_node(line[0]).xy, self.graph.get_node(line[1]).xy]
             )
-            self.ax.plot(*con.xy, "--", color="#999999", linewidth=1)
+            self.plot(*con.xy, pen="#999999")
 
     @execution_timer("Draw found path")
     def draw_path(self, path):
@@ -196,29 +187,61 @@ class AreaRender(FigureCanvasQTAgg):
             color = (
                 "b--" if abs(p1[0] - p2[0]) + abs(p1[1] - p2[1]) > self.step else "blue"
             )
-            self.ax.plot(*zip(p1, p2), color, zorder=200)
+            self.plot(*zip(p1, p2), color, zorder=200)
 
-    def highlight_point(self, ax, index, human_size=0.25, show_numbers=True):
-        target = self.graph.get_node(index)
-        if not target:
-            logging.warning("No point found")
-        circle = plt.Circle(target.point.xy, human_size, color="blue", zorder=10)
-        if show_numbers:
-            plt.text(
-                target.x - human_size / 2,
-                target.y - human_size / 2,
-                str(index),
-                color="black",
-                zorder=100,
-            )
-        ax.add_patch(circle)
-        plt.show()
+    def _load_graph(self, path: str) -> Graph:
+        with open(path, "rb") as f:
+            return pickle.load(f)
 
-    def on_click(self, event):
-        if event.dblclick:
-            x, y = event.xdata, event.ydata
+    def _save_graph(self, path: str):
+        with open(path, "wb") as f:
+            pickle.dump(self.graph, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def _shapely_polygon_to_qt(
+        self, poly: [Polygon, MultiPolygon], closed: bool = True
+    ):
+        path = QtGui.QPainterPath()
+        # Outer border
+        exterior_coords = np.array(poly.exterior.coords.xy).T
+        path.moveTo(exterior_coords[0, 0], exterior_coords[0, 1])
+        for x, y in exterior_coords[1:]:
+            path.lineTo(x, y)
+        path.closeSubpath()
+        # Inner walls
+        for interior_ring in poly.interiors:
+            interior_coords = np.array(interior_ring.coords.xy).T
+            path.moveTo(interior_coords[0, 0], interior_coords[0, 1])
+            for x, y in interior_coords[1:]:
+                path.lineTo(x, y)
+
+        if closed:
+            path.closeSubpath()
+
+        return path
+
+    def _draw_wall(
+        self,
+        border,
+        fill: bool = False,
+        color: str = "black",
+        closed: bool = True,
+    ):
+        border = self._shapely_polygon_to_qt(border, closed=closed)
+        pen = QGraphicsPathItem(border)
+        pen.setPen(pg.mkPen(color=color, width=2))
+        if fill:
+            pen.setBrush(pg.mkBrush(color="green"))
+        self.addItem(pen)
+
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            scene_pos = QtCore.QPointF(event.pos())
+            point = self.viewBox.mapSceneToView(scene_pos)  # get the point clicked
+            x, y = point.x(), point.y()
             for i in range(len(self.graph)):
                 node = self.graph.get_node(i)
-                if abs(x - node.x) < 1e-1 and abs(y - node.y) < 1e-1:
-                    self.highlight_point(event.inaxes, i)
+                if abs(x - node.x) < self.step / 2 and abs(y - node.y) < self.step / 2:
+                    self.points.append({"pos": (node.x, node.y), "data": f"ID: {i}"})
+                    self.highlight_points.setData(spots=self.points)
                     break
+        super().mousePressEvent(event)

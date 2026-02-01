@@ -1,16 +1,27 @@
 services:
-# cloud LLMs
-  gigachat:
-    build: ./gigachat-service
-    command: uvicorn app.main:app --reload --host 0.0.0.0 --port 81
-    container_name: gigachat
-    environment:
-      - CHROMA=chromadb
-    ports:
-      - "8001:81"
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
     restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq:/var/lib/rabbitmq
     networks:
-      - internal  
+      - internal
+# cloud LLMs
+  # gigachat:
+  #   build: ./gigachat-service
+  #   command: uvicorn app.main:app --reload --host 0.0.0.0 --port 81
+  #   container_name: gigachat
+  #   environment:
+  #     - CHROMA=chromadb
+  #   ports:
+  #     - "8001:81"
+  #   restart: unless-stopped
+  #   networks:
+  #     - internal  
 
 # local LLMs
   ollama:
@@ -37,11 +48,6 @@ services:
       - CHROMA=chromadb
       - OLLAMA_HOST=ollama
       - MODEL=deepseek-r1
-      # - MODEL=gpt-oss
-      # - MODEL=qwen3-vl
-      # - MODEL=gemma3:12b
-      # - MODEL=llama3.1
-      # - MODEL=mistral
     ports:
       - "8002:82"
     restart: unless-stopped
@@ -81,6 +87,22 @@ services:
       - "9090:9090"
     networks:
       - internal
+    restart: unless-stopped
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana:/var/lib/grafana
+    networks:
+      - internal
+    depends_on:
+      - prometheus
+    restart: unless-stopped
   chromadb:
     image: chromadb/chroma:1.0.16.dev5
     container_name: chromadb
@@ -91,12 +113,13 @@ services:
     ports:
       - "8070:8070"
     volumes:
-      - ./data/chroma:/data
-      - ./config/chroma/config.yaml:/config.yaml
+      - chroma:/data
+      - ./config/chroma.yaml:/config.yaml
     depends_on:
       - otel-collector
       - zipkin
       - prometheus
+      - rabbitmq
     networks:
       - internal
     restart: unless-stopped
@@ -104,3 +127,8 @@ services:
 networks:
   internal:
     driver: bridge
+
+volumes:
+  grafana: 
+  rabbitmq:
+  chroma:

@@ -98,7 +98,6 @@ class Entrance(Interactable):
         if self._storage:
             agent = self._storage.pop()
             agent.position = random.choice(self.outlet_point)
-            agent.set_visible(step=step)
             if starting_status is not None:
                 agent.status.append(starting_status)
             agent.request_task(graph, interactables)
@@ -150,7 +149,6 @@ class Gate(Interactable):
 
         agent = self.plane.passengers.pop()
         agent.position = random.choice(self.outlet_point)
-        agent.set_visible(step=step)
         if starting_status is not None:
             agent.status.append(starting_status)
         agent.request_task(graph, interactables)

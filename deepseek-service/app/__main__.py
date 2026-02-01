@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 
 # To fix wrong Sqlite3 error in Chroma
 __import__("pysqlite3")
@@ -13,8 +14,15 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_classic.chains import RetrievalQA
 from langchain_chroma.vectorstores import Chroma
 
-llm: ChatOllama = "deepseek-r1"
-# llm: ChatOllama = None
+logging.basicConfig(
+    level=logging.INFO,
+    filename="logs/llm_log.log",
+    filemode="w",
+    format="%(asctime)s:%(levelname)s:%(message)s",
+)
+
+
+llm: ChatOllama = None
 
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
@@ -37,9 +45,24 @@ async def index():
 
 @app.post("/")
 async def get_llm_response(prompt: str, model: str = None):
+    try:
+        response = local_request(prompt)
+    except Exception as e:
+        logging.error(f"Error getting a request from a model: {e}")
+        response = None
+    return {"response": response}
+
+
+@app.post("/swap")
+async def swap_model(model: str, temperature: float = 0.3):
     global llm
-    llm = ChatOllama(model=model, temperature=0.3)
-    return {"response": local_request(prompt)}
+    logging.info(f"Changing model to {model}")
+    try:
+        llm = ChatOllama(model=model, temperature=temperature)
+    except Exception as e:
+        logging.error(f"Error changing a model: {e}")
+        llm = None
+    return {"response": llm is not None}
 
 
 def local_request(prompt):

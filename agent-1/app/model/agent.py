@@ -7,7 +7,6 @@ import os
 from collections import deque
 import uuid
 
-import matplotlib.pyplot as plt
 import requests
 
 from model import agent_task
@@ -29,12 +28,6 @@ class Agent:
     def __init__(self, name: str, prompt: str):
         self.id = uuid.uuid4()
         self.name = name
-        self.__ui_object = plt.Circle(
-            (0, 0),
-            color="red",
-            zorder=10000,
-            visible=False,
-        )
         self.__current_task = None
         self.tasks = deque()
         self.position = None
@@ -47,11 +40,6 @@ class Agent:
     def current_task(self) -> agent_task.AgentTask:
         """Current agent task"""
         return self.__current_task
-
-    @property
-    def ui_object(self) -> plt.Circle:
-        """Agent matplotlib ui object"""
-        return self.__ui_object
 
     def tick(self, graph: Graph, interactables: dict):
         """Updates agent tasks status
@@ -94,7 +82,7 @@ class Agent:
         try:
             prompt = self.__prompt.format(". ".join(self.status))
             logging.info("%s -> %s", self.name, prompt)
-            print(os.getenv("LLM_SELECTED"))
+            # print(os.getenv("LLM_SELECTED"))
             path = requests.post(
                 os.getenv("LLM"),
                 params={
@@ -149,7 +137,6 @@ class Agent:
             return None
         self.__current_task = self.tasks.popleft()
         self.state = self.__current_task.state
-        self.__ui_object.set_visible(self.state is not State.COMPLETE)
         if isinstance(self.__current_task, agent_task.WalkingTask):
             self.__current_task.setup(self.position, graph)
         logging.debug(
@@ -166,21 +153,6 @@ class Agent:
             index (int): target node index
         """
         self.position = index
-        self.__ui_object.set_center(point)
-
-    def set_visible(self, visibility: bool = True, step: float = 1):
-        """Set visibility of agent mark on a plan
-
-        Args:
-            visibility (bool, optional): True if visible. Defaults to True.
-        """
-        if step is not None:
-            self.__ui_object.radius = step * 0.4
-        self.__ui_object.set_visible(visibility)
-
-    def remove_token(self):
-        """Delete visible token"""
-        self.__ui_object.remove()
 
     def reset_status(self, is_departing: bool = True, extra_message=""):
         self.__prompt = os.environ[
