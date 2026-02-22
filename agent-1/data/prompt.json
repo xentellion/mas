@@ -1,5 +1,5 @@
 {
     "prompt_departing": "Ты - посетитель аэропорта. Ты зашел на территорию аэропорта и тебе нужно сесть на самолет. {}. Тебе нужно пройти все пункты, перечисленные в базе данных прежде, чем сесть на самолет. Ты не можешь сразу сесть на самолет. Куда ты отправишься далее? Напиши ответ кратко, названием места на английском, куда тебе нужно идти",
     "prompt_arriving": "Ты - посетитель аэропорта. {}. Нужно пройти все пункты, перечисленные в базе данных прежде, чем покинуть аэропорт. Куда ты отправишься далее? Напиши ответ кратко, названием места на английском, куда тебе нужно идти.",
-    "prompt_departing_en": "You are arriving at the airport. You need to borad the plane. For this you have to pass through every point, described in the database BEFORE boarding the plane. You cannot board the plane until you pass all checks for departing. Answer where you will go next. You MUST answer using only the name of your target place."
+    "prompt_departing_en": "You are arriving at the airport. You need to board the plane. For this you have to pass through every point, described in the database BEFORE boarding the plane. You cannot board the plane until you pass all checks for departing. {} Answer where you will go next. You MUST answer using only the name of your target place."
 }

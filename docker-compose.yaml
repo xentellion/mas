@@ -1,3 +1,5 @@
+include:
+  - path: docker-compose.llm.yaml
 services:
   rabbitmq:
     image: rabbitmq:3-management
@@ -10,39 +12,9 @@ services:
       - rabbitmq:/var/lib/rabbitmq
     networks:
       - internal
-# cloud LLMs
-  # gigachat:
-  #   build: ./gigachat-service
-  #   command: uvicorn app.main:app --reload --host 0.0.0.0 --port 81
-  #   container_name: gigachat
-  #   environment:
-  #     - CHROMA=chromadb
-  #   ports:
-  #     - "8001:81"
-  #   restart: unless-stopped
-  #   networks:
-  #     - internal  
-
-# local LLMs
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - /usr/share/ollama/.ollama:/root/.ollama
-    networks:
-      - internal
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
   deepseek:
     build: ./deepseek-service
-    command: uvicorn app.main:app --reload --host 0.0.0.0 --port 82
+    command: uvicorn entrypoint:app --reload --host 0.0.0.0 --port 82
     container_name: deepseek
     environment:
       - CHROMA=chromadb
@@ -107,19 +79,23 @@ services:
     image: chromadb/chroma:1.0.16.dev5
     container_name: chromadb
     environment:
-      - IS_PERSISTENT=TRUE   
-      - CHROMA_OPEN_TELEMETRY__ENDPOINT=http://otel-collector:4317/
-      - CHROMA_OPEN_TELEMETRY__SERVICE_NAME=chromadb
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8070
+      - ANONYMIZED_TELEMETRY=False
+      - CHROMA_OTEL_EXPORTER_ENDPOINT=http://otel-collector:4317/
+      - CHROMA_OTEL_EXPORTER_headers={}
     ports:
       - "8070:8070"
     volumes:
-      - chroma:/data
       - ./config/chroma.yaml:/config.yaml
+      - type: bind
+        source: data/chroma
+        target: /data
     depends_on:
       - otel-collector
       - zipkin
-      - prometheus
       - rabbitmq
+      - grafana
     networks:
       - internal
     restart: unless-stopped
@@ -131,4 +107,3 @@ networks:
 volumes:
   grafana: 
   rabbitmq:
-  chroma:

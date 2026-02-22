@@ -85,7 +85,7 @@ class Agent:
             # print(os.getenv("LLM_SELECTED"))
             path = requests.post(
                 os.getenv("LLM"),
-                params={
+                json={
                     "prompt": prompt,
                     "model": os.getenv("LLM_SELECTED"),
                 },

@@ -2,6 +2,18 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name":"LLM RPC server",
+            "type":"debugpy",
+            "request":"launch",
+            "python": "${workspaceFolder}/llm_rpc_server/venv-rpc/bin/python3.13",
+            "cwd": "${workspaceFolder}/llm_rpc_server",
+            "program":"rpc_server.py",
+            "console":"integratedTerminal",
+            "env": {
+                "CHROMA": "0.0.0.0"
+            }
+        },
+        {
             "name": "Gigachat debug",
             "type": "debugpy",
             "request": "launch",
@@ -26,10 +38,10 @@
             "type": "debugpy",
             "request": "launch",
             "module": "uvicorn",
-            "python": "${workspaceFolder}/deepseek-service/venv-deepseek/bin/python3.13",
             "cwd": "${workspaceFolder}/deepseek-service",
+            "python": "${workspaceFolder}/deepseek-service/venv-deepseek/bin/python3.13",
             "args": [
-                "app.__main__:app",
+                "entrypoint:app",
                 "--reload",
                 "--host",
                 "0.0.0.0",

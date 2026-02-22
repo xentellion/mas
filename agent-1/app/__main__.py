@@ -9,7 +9,8 @@ from datetime import datetime
 from copy import deepcopy
 
 import requests
-import pika
+
+# import pika
 
 from PyQt6.QtWidgets import (
     QApplication,
@@ -232,7 +233,6 @@ class MainWindow(QMainWindow):
         uic.loadUi("main.ui", self)
         self.setWindowTitle("AirportSim")
 
-        self.connection = None
         self.ren: AreaRender = self.prepare_sim(STEP)
 
         self.create_mpl_layout()
@@ -284,9 +284,6 @@ class MainWindow(QMainWindow):
     def start_sim(self):
         try:
             requests.get(os.getenv("LLM"), timeout=5).status_code
-            self.connection = pika.BlockingConnection(
-                pika.ConnectionParameters(host="localhost")
-            )
         except Exception as e:
             self.statusBar().showMessage("LLM is not responding")
             self.statusBar().setStyleSheet("color: red;")
@@ -302,8 +299,6 @@ class MainWindow(QMainWindow):
         self.worker.signals.agent_removed.connect(self.__agent_removed)
         self.worker.signals.agent_error.connect(self.__agent_error)
 
-        # channel = self.connection.channel()
-        # channel.exchange_declare(exchange="logs", exchange_type="fanout")
         self.threadpool.start(self.worker)
 
     def restart_sim(self):
@@ -332,8 +327,6 @@ class MainWindow(QMainWindow):
         for x in deepcopy(list(self.agent_plates.keys())):
             self.__agent_removed(x)
         self.agent_plates = {}
-        print(self.connection.is_open)
-        self.connection.close()
 
     def lock_buttons(self, state: bool):
         self.start_button.setEnabled(state)
@@ -352,21 +345,21 @@ class MainWindow(QMainWindow):
             os.environ["LLM_SELECTED"] = self.select_model.currentText()
         except KeyError:
             logging.warning("Can't change the model. Using last or default value")
-        try:
-            response = requests.post(
-                f"{os.getenv("LLM")}/swap",
-                params={
-                    "model": os.getenv("LLM_SELECTED"),
-                },
-                timeout=120,
-            ).json()["response"]
-        except requests.exceptions.ConnectionError as e:
-            logging.error(f"Cannot connect to models: {e}")
-            response = None
-        if not response:
-            logging.error("Can't change an LLM")
-        else:
-            logging.info("Target LLM changed")
+        # try:
+        #     response = requests.post(
+        #         f"{os.getenv("LLM")}/swap",
+        #         params={
+        #             "model": os.getenv("LLM_SELECTED"),
+        #         },
+        #         timeout=120,
+        #     ).json()["response"]
+        # except requests.exceptions.ConnectionError as e:
+        #     logging.error(f"Cannot connect to models: {e}")
+        #     response = None
+        # if not response:
+        #     logging.error("Can't change an LLM")
+        # else:
+        logging.info("Target LLM changed")
 
     def __agent_deployed(self, agent: Agent):
         if agent.name in self.agent_plates:

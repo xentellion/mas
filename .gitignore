@@ -1,7 +1,7 @@
 data/*
 agent-1/logs/*
 
-!agent-1/logs/.gitkeep
+!**/.gitkeep
 # certificates
 ca-gigachat.pem
 access_token.json
