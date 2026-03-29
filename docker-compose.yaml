@@ -12,6 +12,7 @@ services:
       - rabbitmq:/var/lib/rabbitmq
     networks:
       - internal
+    attach: false
   deepseek:
     build: ./deepseek-service
     command: uvicorn entrypoint:app --reload --host 0.0.0.0 --port 82
@@ -36,6 +37,7 @@ services:
     networks:
       - internal
     restart: unless-stopped
+    attach: false
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.111.0
     container_name: otel-collector
@@ -50,6 +52,7 @@ services:
     networks:
       - internal
     restart: unless-stopped
+    attach: false
   prometheus:
     image: prom/prometheus:latest
     command: ["--config.file=/etc/prometheus/prometheus.yml"]
@@ -60,6 +63,7 @@ services:
     networks:
       - internal
     restart: unless-stopped
+    attach: false
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -75,6 +79,7 @@ services:
     depends_on:
       - prometheus
     restart: unless-stopped
+    attach: false
   chromadb:
     image: chromadb/chroma:1.0.16.dev5
     container_name: chromadb

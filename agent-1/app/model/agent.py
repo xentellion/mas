@@ -4,10 +4,13 @@ import datetime
 import logging
 import os
 
-from collections import deque
+from collections import deque, Counter
 import uuid
+import json
 
 import requests
+import asyncio
+import aiohttp
 
 from model import agent_task
 from model.extras import State
@@ -80,17 +83,12 @@ class Agent:
             self.__current_task = None
         tm = datetime.datetime.now()
         try:
-            prompt = self.__prompt.format(". ".join(self.status))
+            prompt = self.__prompt.format(
+                ". ".join(self.status + [os.environ["PROMPT_END"]])
+            )
             logging.info("%s -> %s", self.name, prompt)
             # print(os.getenv("LLM_SELECTED"))
-            path = requests.post(
-                os.getenv("LLM"),
-                json={
-                    "prompt": prompt,
-                    "model": os.getenv("LLM_SELECTED"),
-                },
-                timeout=120,
-            ).json()["response"]
+            path = self.get_path(prompt=prompt)
         except requests.HTTPError as e:
             logging.error(e)
             path = None
@@ -109,6 +107,32 @@ class Agent:
         task = agent_task.WalkingTask(path.lower().strip(), interactables)
         task.setup(self.position, graph)
         self.add_task(task)
+
+    def get_path(self, prompt):
+        result = asyncio.run(self.send_request_async(prompt))
+        if not result:
+            return None
+        if len(result) == 1:
+            return json.loads(result[0])["response"]
+        data = sorted(dict(Counter(result)).items(), key=lambda x: x[1])
+        return json.loads(data[0][0])["response"]
+
+    async def send_request_async(self, prompt: str):
+        url = os.getenv("LLM")
+        json = {
+            "prompt": prompt,
+            "model": os.getenv("LLM_SELECTED"),
+        }
+        instances = int(os.getenv("ACTIVE_LLMS"))
+
+        async with aiohttp.ClientSession() as session:
+            tasks = [self.fetch(session, url, json) for _ in range(instances)]
+            statuses = await asyncio.gather(*tasks)
+            return [x.decode() for x in statuses]
+
+    async def fetch(self, session: aiohttp.ClientSession, url: str, json: dict):
+        async with session.post(url=url, json=json) as response:
+            return await response.read()
 
     def add_task(self, task: agent_task.AgentTask):
         """Add new task to the list of available tasks

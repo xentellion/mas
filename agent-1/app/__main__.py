@@ -3,7 +3,6 @@
 import os
 import sys
 import json
-import time
 import logging
 from datetime import datetime
 from copy import deepcopy
@@ -22,17 +21,13 @@ from PyQt6.QtWidgets import (
     # QLabel,
 )
 from PyQt6 import uic
-from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import QThreadPool
 
-from model import agent_task, interactable
-from model.agent import Agent, State
-from model.extras import StartPrompt
+from model.agent import Agent
 from model.environment import AreaRender
-from model.plane import Plane
-from model.prepared_items import PreparedPlane, PreparedAgent
+from model.worker import SimWorker
 
 
-TPS = 1 / float(os.environ["TPS"])
 STEP = 1
 
 logging.basicConfig(
@@ -71,144 +66,6 @@ def load_prompts(path="data/prompt.json"):
             return None
         for k, v in data.items():
             os.environ[str(k).upper()] = str(v)
-
-
-class WorkerSignals(QObject):
-    new_agent = pyqtSignal(Agent)
-    agent_updated = pyqtSignal(Agent)
-    agent_removed = pyqtSignal(str)
-    agent_error = pyqtSignal(str)
-
-    new_plane = pyqtSignal(Plane)
-    plane_updated = pyqtSignal(str)
-    plane_removed = pyqtSignal(str)
-
-
-class SimWorker(QRunnable):
-    signals = WorkerSignals()
-
-    def __init__(self, ren: AreaRender):
-        super().__init__()
-        self.ren = ren
-        self.is_paused = False
-        self.is_killed = False
-
-    @pyqtSlot()
-    def run(self):
-        logging.info("Simulation started")
-        self.main(self.ren, STEP)
-
-    def load_starting_positions(self, path):
-        prepared_agents = []
-        prepared_planes = []
-        with open(path, "r", encoding="UTF-8") as f:
-            data = json.load(f)
-            for plane in data["planes"]:
-                spawn_time = plane["spawn_time"]
-                del plane["spawn_time"]
-
-                passengers = []
-                for psng in plane["passengers"]:
-                    passengers.append(
-                        Agent(
-                            psng["name"],
-                            os.environ[StartPrompt(int(psng["initial_state"])).name],
-                        )
-                    )
-                plane["passengers"] = passengers
-
-                prepared_planes.append(
-                    PreparedPlane(plane=Plane(**plane), spawn_time=spawn_time)
-                )
-            for psng in data["departing_passengers"]:
-                psng["agent"] = Agent(
-                    psng["agent"]["name"],
-                    os.environ[StartPrompt(int(psng["agent"]["initial_state"])).name],
-                )
-                prepared_agents.append(PreparedAgent(**psng))
-        return prepared_agents, prepared_planes
-
-    def main(self, ren, step):
-        agents: list[Agent] = []
-        prepared_agents, prepared_planes = self.load_starting_positions(
-            "data/init_setup.json"
-        )
-        tick_count = 0
-
-        sim_event_loop = True
-        while sim_event_loop:
-            if self.is_paused:
-                time.sleep(0.1)
-                continue
-            if self.is_killed:
-                break
-            prepared_agents.sort(key=lambda x: x.spawn_time)
-            prepared_planes.sort(key=lambda x: x.spawn_time)
-
-            for loaded in prepared_planes.copy():
-                if loaded.spawn_time > tick_count:
-                    break
-                ren.interactables[loaded.plane.gate].add_plane(loaded.plane)
-                prepared_planes.remove(loaded)
-
-            for loaded in prepared_agents.copy():
-                if loaded.spawn_time > tick_count:
-                    break
-                ren.interactables[loaded.spawn_point].add_new_agent(
-                    loaded.agent, ren.graph, loaded.flight, ""
-                )
-                prepared_agents.remove(loaded)
-
-            for point in ren.interactables.values():
-                if isinstance(point, (interactable.Entrance, interactable.Gate)):
-                    new_ag = point.spawn_agent(ren.graph, ren.interactables, step)
-                    if new_ag is not None:
-                        # ren.ax.add_patch(new_ag.ui_object)
-                        self.signals.new_agent.emit(new_ag)
-                        agents.append(new_ag)
-
-            for a in agents:
-                try:
-                    new_pos = a.tick(ren.graph, ren.interactables)
-                except AttributeError as e:
-                    logging.error(f"Can't process agent tick: {e}")
-                    self.signals.agent_error.emit(e)
-                    break
-                if new_pos is None:
-                    a.change_task(ren.graph)
-                    if a.current_task is None and a.state is State.WALKING:
-                        if a.position in ren.interactables_mapping:
-                            inter = ren.interactables[
-                                ren.interactables_mapping[a.position]
-                            ]
-                            a.add_task(inter.get_task(a))
-                    # self.signals.agent_updated.emit(a)
-                else:
-                    if isinstance(a.current_task, agent_task.WalkingTask):
-                        a.move(ren.graph.get_node(new_pos).point.xy, new_pos)
-
-            for x in filter(lambda x: x.state is State.COMPLETE, agents):
-                self.signals.agent_removed.emit(x.name)
-            agents = list(filter(lambda x: x.state is not State.COMPLETE, agents))
-
-            self.ren.agent_items.setData(
-                spots=[
-                    {"pos": tuple(ren.graph.get_node(a.position).xy)} for a in agents
-                ]
-            )
-            self.ren.update()
-
-            tick_count += 1
-            time_delta = TPS - (time.time() % TPS)
-            if time_delta > 0:
-                time.sleep(time_delta)
-
-    def toggle_pause(self):
-        self.is_paused = not self.is_paused
-
-    def kill(self):
-        self.is_killed = True
-        logging.info("Simulation stopped\n" + "-" * 40)
 
 
 class AgentPlate(QWidget):
@@ -293,7 +150,7 @@ class MainWindow(QMainWindow):
         self.statusBar().setStyleSheet("")
 
         self.lock_buttons(False)
-        self.worker = SimWorker(self.ren)
+        self.worker = SimWorker(self.ren, STEP)
         self.worker.signals.new_agent.connect(self.__agent_deployed)
         self.worker.signals.agent_updated.connect(self.__agent_updated)
         self.worker.signals.agent_removed.connect(self.__agent_removed)
@@ -320,13 +177,12 @@ class MainWindow(QMainWindow):
             self.pause_sim()
         self.lock_buttons(True)
         self.worker.kill()
-        del self.worker
-
-        self.ren.agent_items.clear()
+        self.worker.ren.reset_area()
+        self.worker.ren.update()
 
         for x in deepcopy(list(self.agent_plates.keys())):
             self.__agent_removed(x)
-        self.agent_plates = {}
+        self.agent_plates.clear()
 
     def lock_buttons(self, state: bool):
         self.start_button.setEnabled(state)
@@ -345,20 +201,6 @@ class MainWindow(QMainWindow):
             os.environ["LLM_SELECTED"] = self.select_model.currentText()
         except KeyError:
             logging.warning("Can't change the model. Using last or default value")
-        # try:
-        #     response = requests.post(
-        #         f"{os.getenv("LLM")}/swap",
-        #         params={
-        #             "model": os.getenv("LLM_SELECTED"),
-        #         },
-        #         timeout=120,
-        #     ).json()["response"]
-        # except requests.exceptions.ConnectionError as e:
-        #     logging.error(f"Cannot connect to models: {e}")
-        #     response = None
-        # if not response:
-        #     logging.error("Can't change an LLM")
-        # else:
         logging.info("Target LLM changed")
 
     def __agent_deployed(self, agent: Agent):

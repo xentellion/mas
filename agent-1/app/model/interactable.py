@@ -88,10 +88,11 @@ class Entrance(Interactable):
         agent.move(graph.get_node(node).point.xy, node)
         if ticket_number is not None:
             agent.status.append(
-                f"У тебя есть билет на борт {ticket_number}. Он будет пристыкован к воротам {ticket_gate}"
+                # f"У тебя есть билет на борт {ticket_number}. Он будет пристыкован к воротам {ticket_gate}"
+                f"You have a ticket for a plane {ticket_number}. It will be at the gate {ticket_gate}"
             )
         else:
-            agent.status.append("У тебя нет билета")
+            agent.status.append("You have no ticket")
         self._storage.append(agent)
 
     def spawn_agent(self, graph, interactables, step: int, starting_status=None):
@@ -145,7 +146,7 @@ class Gate(Interactable):
         if not self.plane.passengers:
             # logging.warning("Plane %s is empty", self.plane.name)
             return None
-        starting_status = f"Ты только что сошел c рейса {self.plane.name}"
+        starting_status = f"You have just got off the plane {self.plane.name}"
 
         agent = self.plane.passengers.pop()
         agent.position = random.choice(self.outlet_point)
@@ -158,19 +159,19 @@ class Gate(Interactable):
 class SecurityCheckpoint(Interactable):
     def __init__(self, name, inlet_point, outlet_point, area, max_occupy, scale, step):
         super().__init__(name, inlet_point, outlet_point, area, max_occupy, scale, step)
-        self.status = "Ты уже прошел досмотр"
+        self.status = "You have passed the security checkpoint"
         self._task = agent_task.InteractingTask(10, self.status)
 
 
 class BaggageReclaim(Interactable):
     def __init__(self, name, inlet_point, outlet_point, area, max_occupy, scale, step):
         super().__init__(name, inlet_point, outlet_point, area, max_occupy, scale, step)
-        self.status = "Ты получил свой багаж"
+        self.status = "You got your luggage"
         self._task = agent_task.InteractingTask(10, self.status)
 
 
 class RegistrationDesk(Interactable):
     def __init__(self, name, inlet_point, outlet_point, area, max_occupy, scale, step):
         super().__init__(name, inlet_point, outlet_point, area, max_occupy, scale, step)
-        self.status = "Ты прошёл регистрацию"
+        self.status = "You passed the registration"
         self._task = agent_task.InteractingTask(10, self.status)

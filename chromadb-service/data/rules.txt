@@ -1,9 +1,14 @@
-Список существующих точек, с которыми можно производить взаимодействия:
-- Выход из аэропорта - exit
-- Вход в аэропорт - entrance
-- Ворота 1 - gate_1
-- Ворота 2 - gate_2
-- Место получения багажа - baggage_reclaim
-- Точка досмотра багажа на входе - security_checkpoint_entrance
-- Точка досмотра багажа на выходе - security_checkpoint_exit
-- Стойка регистрации - registration_desk_1
+List of existing points of interest in an airport.
+Airport entrypoints:
+- exit
+- entrance
+Gates:
+- gate_1 
+- gate_2
+Core infrastructure:
+- baggage_reclaim
+- security_checkpoint_entrance 
+- security_checkpoint_exit
+- registration_desk_1 - Check-in point
+Recreation and basic needs:
+

@@ -30,7 +30,11 @@ class AreaRender(pg.PlotWidget):
         background="white",
     ):
         super().__init__(parent, background)
+        self.create_renderer(step, draw_grid)
+
+    def create_renderer(self, step, draw_grid):
         self.step = step
+        self.draw_grid = False
         self.graph = None
         self.extra_connections = None
         self.flats = self._load_walls()
@@ -40,14 +44,14 @@ class AreaRender(pg.PlotWidget):
         self.setLabel("left", "Y Axis")
         self.setLabel("bottom", "X Axis")
         self.setAspectLocked(lock=True, ratio=1)
-        self.showGrid(x=draw_grid, y=draw_grid)
+        self.showGrid(x=self.draw_grid, y=self.draw_grid)
         self.viewBox = self.plotItem.getViewBox()
 
         self.edges_drawn = []
         self.interactables_mapping, self.interactables = None, None
         self.create_area()
         self.draw_intercatables()
-        if draw_grid:
+        if self.draw_grid:
             # Atrociously bad performance (edges are drawn twice)
             # Might tackle, don't care tho
             self.draw_edges()
@@ -75,6 +79,11 @@ class AreaRender(pg.PlotWidget):
         )
         self.agent_items.setZValue(3)
         self.addItem(self.agent_items)
+
+    def reset_area(self):
+        self.removeItem(self.agent_items)
+        self.removeItem(self.highlight_points)
+        self.create_renderer(self.step, self.draw_grid)
 
     @execution_timer("Load walls data")
     def _load_walls(self, path="data/walls.json") -> list[Wall]:
