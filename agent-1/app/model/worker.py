@@ -3,11 +3,12 @@ import json
 import logging
 import time
 
-from PyQt6.QtCore import QObject, QRunnable, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import QRunnable, pyqtSlot
 
 
 from model import agent_task, interactable
 from model.agent import Agent, State
+from model.worker_signals import WorkerSignals
 from model.environment import AreaRender
 from model.extras import StartPrompt
 from model.plane import Plane
@@ -15,17 +16,6 @@ from model.prepared_items import PreparedPlane, PreparedAgent
 
 
 TPS = 1 / float(os.environ["TPS"])
-
-
-class WorkerSignals(QObject):
-    new_agent = pyqtSignal(Agent)
-    agent_updated = pyqtSignal(Agent)
-    agent_removed = pyqtSignal(str)
-    agent_error = pyqtSignal(str)
-
-    new_plane = pyqtSignal(Plane)
-    plane_updated = pyqtSignal(str)
-    plane_removed = pyqtSignal(str)
 
 
 class SimWorker(QRunnable):
@@ -114,7 +104,6 @@ class SimWorker(QRunnable):
                         self.ren.graph, self.ren.interactables, self.step
                     )
                     if new_ag is not None:
-                        # ren.ax.add_patch(new_ag.ui_object)
                         self.signals.new_agent.emit(new_ag)
                         agents.append(new_ag)
 
@@ -123,17 +112,19 @@ class SimWorker(QRunnable):
                     new_pos = a.tick(self.ren.graph, self.ren.interactables)
                 except AttributeError as e:
                     logging.error(f"Can't process agent tick: {e}")
-                    self.signals.agent_error.emit(e)
+                    self.signals.agent_error.emit(str(e))
+                    self.toggle_pause()
                     break
                 if new_pos is None:
                     a.change_task(self.ren.graph)
+                    self.signals.agent_updated.emit(a)
+
                     if a.current_task is None and a.state is State.WALKING:
                         if a.position in self.ren.interactables_mapping:
                             inter = self.ren.interactables[
                                 self.ren.interactables_mapping[a.position]
                             ]
                             a.add_task(inter.get_task(a))
-                    # self.signals.agent_updated.emit(a)
                 else:
                     if isinstance(a.current_task, agent_task.WalkingTask):
                         a.move(self.ren.graph.get_node(new_pos).point.xy, new_pos)

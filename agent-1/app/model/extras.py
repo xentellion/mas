@@ -8,8 +8,9 @@ class State(Enum):
     IDLE = 0
     WALKING = 1
     PERFORMING = 2
-    BOARDED = 3
-    COMPLETE = 4
+    REQUESTING = 3
+    BOARDING = 4
+    COMPLETE = 5
 
 
 class StartPrompt(Enum):

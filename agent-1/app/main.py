@@ -16,14 +16,14 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QVBoxLayout,
     QPushButton,
-    QWidget,
     QMessageBox,
-    # QLabel,
 )
 from PyQt6 import uic
 from PyQt6.QtCore import QThreadPool
 
+import model.agent_task as agent_task
 from model.agent import Agent
+from model.agent_plate import AgentPlate
 from model.environment import AreaRender
 from model.worker import SimWorker
 
@@ -68,23 +68,9 @@ def load_prompts(path="data/prompt.json"):
             os.environ[str(k).upper()] = str(v)
 
 
-class AgentPlate(QWidget):
-    def __init__(self, name, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        uic.loadUi("agent.ui", self)
-        self.__name = name
-        self.agent_data.setTitle(str(name))
-
-    @property
-    def name(self):
-        return self.__name
-
-    @name.setter
-    def name(self, name):
-        self.__name == name
-
-
 class MainWindow(QMainWindow):
+    worker = None
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         uic.loadUi("main.ui", self)
@@ -216,9 +202,15 @@ class MainWindow(QMainWindow):
             self.agents_list.layout().removeWidget(target)
 
     def __agent_updated(self, agent: Agent):
-        target = self.agent_plates.get(agent.name, None)
-        if target:
-            target.target_label = agent.current_task.status
+        if agent.name not in self.agent_plates:
+            logging.warning(f"Plake does not exist for agent {agent.name}")
+            return
+        if agent.current_task is None:
+            logging.warning(f"No task present for agent {agent.name}")
+            return
+        self.agent_plates[agent.name].setState(agent.state)
+        if isinstance(agent.current_task, agent_task.WalkingTask):
+            self.agent_plates[agent.name].setTarget(agent.current_task.dest_name)
 
     def __agent_error(self, text):
         temp = self.agent_error_message

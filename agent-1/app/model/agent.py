@@ -16,7 +16,6 @@ from model import agent_task
 from model.extras import State
 from model.graph import Graph
 
-
 LOG_PROMPTS = os.getenv("LOG_PROMPTS") == "True"
 
 
@@ -57,13 +56,12 @@ class Agent:
         if self.__current_task is None:
             if not self.tasks:
                 self.request_task(graph, interactables)
-            self.change_task(graph)
+            return None
         status = self.__current_task.tick()
         if status is None:
             if self.__current_task.status is not None:
                 self.status.append(self.__current_task.status)
             self.__current_task = None
-            self.change_task(graph)
             return None
         return status
 
@@ -168,6 +166,7 @@ class Agent:
             self.name,
             self.__current_task.__class__.__name__,
         )
+        #     return self.__current_task.dest_name
 
     def move(self, point: tuple[int], index: int):
         """Move agent to the set point in graph

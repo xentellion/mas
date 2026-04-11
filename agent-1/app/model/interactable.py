@@ -101,7 +101,7 @@ class Entrance(Interactable):
             agent.position = random.choice(self.outlet_point)
             if starting_status is not None:
                 agent.status.append(starting_status)
-            agent.request_task(graph, interactables)
+            # agent.request_task(graph, interactables)
             return agent
         return None
 
@@ -152,7 +152,7 @@ class Gate(Interactable):
         agent.position = random.choice(self.outlet_point)
         if starting_status is not None:
             agent.status.append(starting_status)
-        agent.request_task(graph, interactables)
+        # agent.request_task(graph, interactables)
         return agent
 
 

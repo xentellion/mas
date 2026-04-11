@@ -49,6 +49,7 @@ class WalkingTask(AgentTask):
         self.path = None
         self.state = State.WALKING
         self.status = status
+        self.dest_name = dest
 
     def setup(self, source: int, graph: Graph):
         """Rebuilds path based on agent location
