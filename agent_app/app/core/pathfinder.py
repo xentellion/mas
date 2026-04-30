@@ -9,17 +9,16 @@ from enum import Enum
 from numpy import ceil
 from shapely import LineString, MultiPolygon, Point, Polygon
 
-from model.extras import execution_timer
-from model.node import Node
-from model.graph import Graph, RoughGraph, SubGraph
+from app.models.graph import Node, Graph, SubGraph, RoughGraph
+from app.utils import execution_timer
+
+
+SENTINEL = "SENTINEL"
 
 
 class HeuristicsDistance(Enum):
     MANHATTAN = 0
     EUCLID = 1
-
-
-SENTINEL = "SENTINEL"
 
 
 class Pathfinder:

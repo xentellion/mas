@@ -5,17 +5,13 @@ import time
 
 from PyQt6.QtCore import QRunnable, pyqtSlot
 
-
-from model import agent_task, interactable
-from model.agent import Agent, State
-from model.worker_signals import WorkerSignals
-from model.environment import AreaRender
-from model.extras import StartPrompt
-from model.plane import Plane
-from model.prepared_items import PreparedPlane, PreparedAgent
-
-
-TPS = 1 / float(os.environ["TPS"])
+from app.core import AreaRender
+from app.models import PreparedAgent, PreparedPlane
+from app.models.agents import Agent, Plane, agent_task
+from app.models.graph import interactable
+from app.models.qt import WorkerSignals
+from app.utils import StartPrompt, State
+from app.core.constants import TPS
 
 
 class SimWorker(QRunnable):

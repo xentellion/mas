@@ -2,7 +2,7 @@ import logging
 
 from shapely.geometry import Polygon, LineString
 
-from model import interactable
+from . import interactable
 
 
 class Wall:

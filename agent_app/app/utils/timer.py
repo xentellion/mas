@@ -1,22 +1,6 @@
 import logging
 import time
 
-from enum import Enum
-
-
-class State(Enum):
-    IDLE = 0
-    WALKING = 1
-    PERFORMING = 2
-    REQUESTING = 3
-    BOARDING = 4
-    COMPLETE = 5
-
-
-class StartPrompt(Enum):
-    PROMPT_DEPARTING = 0
-    PROMPT_ARRIVING = 1
-
 
 def execution_timer(msg: str = "Task"):
     def outer_wrapper(func):

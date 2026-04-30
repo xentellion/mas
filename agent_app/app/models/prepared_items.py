@@ -1,7 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from model.agent import Agent
-from model.plane import Plane
+from app.models.agents import Agent, Plane
 
 
 class Prepared(BaseModel):

@@ -1,15 +1,11 @@
 """starting script"""
 
 import os
-import sys
 import json
 import logging
-from datetime import datetime
 from copy import deepcopy
 
 import requests
-
-# import pika
 
 from PyQt6.QtWidgets import (
     QApplication,
@@ -21,51 +17,11 @@ from PyQt6.QtWidgets import (
 from PyQt6 import uic
 from PyQt6.QtCore import QThreadPool
 
-import model.agent_task as agent_task
-from model.agent import Agent
-from model.agent_plate import AgentPlate
-from model.environment import AreaRender
-from model.worker import SimWorker
-
-
-STEP = 1
-
-logging.basicConfig(
-    level=logging.INFO,
-    filename=f"logs/{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log",
-    filemode="a+",
-    format="%(asctime)s:%(levelname)s:%(message)s",
-)
-
-
-def delete_oldest_logs(path: str = "logs", logs_count: int = 10):
-    files = []
-    for filename in os.listdir(path):
-        filepath = os.path.join(path, filename)
-        if os.path.isfile(filepath):
-            files.append(filepath)
-    if not files:
-        return
-    if len(files) < logs_count:
-        return
-    files.sort(key=os.path.getctime, reverse=True)
-    for file in files[logs_count - 1 : -2]:
-        try:
-            os.remove(file)
-            logging.info(f"Oldest log cleared: {file}")
-        except OSError as e:
-            logging.error(f"Error deleting file {file}: {e}")
-
-
-def load_prompts(path="data/prompt.json"):
-    with open(path, "r", encoding="UTF-8") as f:
-        try:
-            data = json.load(f)
-        except FileNotFoundError:
-            logging.error("Failed to load prompts")
-            return None
-        for k, v in data.items():
-            os.environ[str(k).upper()] = str(v)
+from app.utils import data
+from app.core import AreaRender, SimWorker
+from app.models.agents import agent_task, Agent
+from app.models.qt import AgentPlate, GeneratorWindow
+from app.core.constants import STEP
 
 
 class MainWindow(QMainWindow):
@@ -73,7 +29,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        uic.loadUi("main.ui", self)
+        uic.loadUi(data.load_ui("main.ui"), self)
         self.setWindowTitle("AirportSim")
 
         self.ren: AreaRender = self.prepare_sim(STEP)
@@ -104,6 +60,9 @@ class MainWindow(QMainWindow):
         self.select_model.currentTextChanged.connect(self.select_model_method)
         self.select_model.setPlaceholderText(f"Default: {os.environ["LLM_SELECTED"]}")
 
+        self.__agent_generator = GeneratorWindow()
+
+        self.actionGenerate.triggered.connect(self.__generate_agents)
         self.actionQuit.triggered.connect(self.__quit_app)
 
         self.agent_plates = {}
@@ -120,7 +79,7 @@ class MainWindow(QMainWindow):
         self.select_model_method()
 
     def prepare_sim(self, step):
-        load_prompts()
+        data.load_prompts()
         ren = AreaRender(step, False)
         return ren
 
@@ -217,18 +176,8 @@ class MainWindow(QMainWindow):
         temp.setText(temp.text().format(text))
         temp.exec()
 
+    def __generate_agents(self):
+        self.__agent_generator.show()
+
     def __quit_app(self):
         QApplication.quit()
-
-
-def main():
-    logging.info("\n--------------Initializing--------------")
-    app = QApplication(sys.argv)
-    w = MainWindow()
-    w.show()
-    sys.exit(app.exec())
-
-
-if __name__ == "__main__":
-    delete_oldest_logs()
-    main()

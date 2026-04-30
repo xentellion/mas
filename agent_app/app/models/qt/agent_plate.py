@@ -1,11 +1,13 @@
 from PyQt6.QtWidgets import QWidget
 from PyQt6 import uic
 
+from app.utils import load_ui
+
 
 class AgentPlate(QWidget):
     def __init__(self, name, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        uic.loadUi("agent.ui", self)
+        uic.loadUi(load_ui("agent.ui"), self)
         self.agent_name.setText(str(name).replace("_", " "))
         self.details_frame.setVisible(False)
 

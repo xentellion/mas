@@ -12,13 +12,10 @@ from PyQt6.QtWidgets import QGraphicsPathItem
 from PyQt6.QtCore import Qt
 from shapely.geometry import Polygon, MultiPolygon, LineString
 
-from model.pathfinder import Pathfinder
-from model.wall import Wall
-from model.extras import execution_timer
-from model.graph import Graph
-
-
-GRAPH_PATH = "data/graph.bin"
+from .pathfinder import Pathfinder
+from app.models.graph import Graph, Wall
+from app.utils import execution_timer
+from app.core.constants import GRAPH_PATH
 
 
 class AreaRender(pg.PlotWidget):

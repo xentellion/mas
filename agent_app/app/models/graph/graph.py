@@ -1,5 +1,5 @@
 from copy import deepcopy
-from model.node import Node
+from .node import Node
 
 
 class Graph:

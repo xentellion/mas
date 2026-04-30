@@ -1,5 +1,6 @@
 data/*
-agent-1/logs/*
+agent_app/logs/*
+agent_app/data/*.bin
 
 !**/.gitkeep
 # certificates
@@ -8,9 +9,6 @@ access_token.json
 
 # template service
 micro-template/
-
-#binaires
-graph.bin
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

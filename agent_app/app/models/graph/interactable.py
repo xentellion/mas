@@ -4,7 +4,7 @@ import random
 from shapely import Point, Polygon
 from shapely.ops import unary_union
 
-import model.agent_task as agent_task
+from app.models.agents import agent_task
 
 
 class Interactable:

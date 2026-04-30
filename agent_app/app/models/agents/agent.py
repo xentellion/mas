@@ -12,11 +12,10 @@ import requests
 import asyncio
 import aiohttp
 
-from model import agent_task
-from model.extras import State
-from model.graph import Graph
-
-LOG_PROMPTS = os.getenv("LOG_PROMPTS") == "True"
+from . import agent_task
+from app.models.graph import Graph
+from app.utils import State
+from app.core.constants import LOG_PROMPTS
 
 
 class Agent:

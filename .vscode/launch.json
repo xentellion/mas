@@ -66,10 +66,10 @@
             "name": "Agent Debug",
             "type": "debugpy",
             "request": "launch",
-            "python": "${workspaceFolder}/agent-1/venv-agent/bin/python",
-            "program": "${workspaceFolder}/agent-1/app/main.py",
+            "python": "${workspaceFolder}/agent_app/venv-agent/bin/python",
+            "program": "${workspaceFolder}/agent_app/main.py",
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/agent-1",
+            "cwd": "${workspaceFolder}/agent_app",
             "env": {
                 "LLM": "http://localhost:8002",
                 "LLM_SELECTED": "deepseek-r1",

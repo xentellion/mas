@@ -4,9 +4,8 @@ import logging
 import random
 from abc import ABC, abstractmethod
 
-from model.extras import State
-from model.graph import Graph
-from model.pathfinder import Pathfinder
+from app.models.graph import Graph
+from app.utils import State
 
 
 class AgentTask(ABC):
@@ -58,6 +57,8 @@ class WalkingTask(AgentTask):
             source (int): id of target node
             graph (Graph): walkable graph
         """
+        from app.core import Pathfinder
+
         self.path = Pathfinder.plot_path(
             graph,
             source,

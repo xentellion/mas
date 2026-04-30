@@ -389,8 +389,16 @@
      <string>Edit</string>
     </property>
    </widget>
+   <widget class="QMenu" name="menuActions">
+    <property name="title">
+     <string>Actions</string>
+    </property>
+    <addaction name="actionGenerate"/>
+    <addaction name="actionSelect_agent_list"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
+   <addaction name="menuActions"/>
    <addaction name="menuHelp"/>
    <addaction name="menuAbout"/>
   </widget>
@@ -410,6 +418,16 @@
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::QuitRole</enum>
+   </property>
+  </action>
+  <action name="actionGenerate">
+   <property name="text">
+    <string>Generate Agents</string>
+   </property>
+  </action>
+  <action name="actionSelect_agent_list">
+   <property name="text">
+    <string>Select agent list</string>
    </property>
   </action>
  </widget>

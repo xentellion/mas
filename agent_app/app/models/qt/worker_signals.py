@@ -1,7 +1,6 @@
 from PyQt6.QtCore import QObject, pyqtSignal
 
-from model.agent import Agent
-from model.plane import Plane
+from app.models.agents import Agent, Plane
 
 
 class WorkerSignals(QObject):
