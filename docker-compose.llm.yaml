@@ -26,38 +26,6 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-  # ollama1:
-  #   image: ollama/ollama:latest
-  #   container_name: ollama1
-  #   ports:
-  #     - "11435:11435"
-  #   volumes:
-  #     - /usr/share/ollama/.ollama:/root/.ollama
-  #   networks:
-  #     - internal
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: all
-  #             capabilities: [gpu]
-  # ollama2:
-  #   image: ollama/ollama:latest
-  #   container_name: ollama2
-  #   ports:
-  #     - "11436:11436"
-  #   volumes:
-  #     - /usr/share/ollama/.ollama:/root/.ollama
-  #   networks:
-  #     - internal
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: all
-  #             capabilities: [gpu]
   llm_rpc:
     build: ./llm_rpc_server
     command: python3 rpc_server.py
@@ -73,31 +41,3 @@ services:
     depends_on:
       - ollama
       - chromadb
-  # llm_rpc1:
-  #   build: ./llm_rpc_server
-  #   command: python3 rpc_server.py
-  #   container_name: llm_rpc1
-  #   environment:
-  #     - CHROMA=chromadb
-  #     - OLLAMA_HOST=ollama1
-  #     - MODEL=deepseek-r1
-  #     - PYTHONUNBUFFERED=1
-  #   restart: unless-stopped
-  #   networks:
-  #     - internal
-  #   depends_on:
-  #     - ollama1
-  # llm_rpc2:
-  #   build: ./llm_rpc_server
-  #   command: python3 rpc_server.py
-  #   container_name: llm_rpc2
-  #   environment:
-  #     - CHROMA=chromadb
-  #     - OLLAMA_HOST=ollama2
-  #     - MODEL=deepseek-r1
-  #     - PYTHONUNBUFFERED=1
-  #   restart: unless-stopped
-  #   networks:
-  #     - internal
-  #   depends_on:
-  #     - ollama2
