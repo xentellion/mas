@@ -4,6 +4,8 @@ from app.models.agents import Agent, Plane
 
 
 class WorkerSignals(QObject):
+    sim_stopped = pyqtSignal(str)
+
     new_agent = pyqtSignal(Agent)
     agent_updated = pyqtSignal(Agent)
     agent_removed = pyqtSignal(str)

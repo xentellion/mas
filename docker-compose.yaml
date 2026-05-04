@@ -13,10 +13,10 @@ services:
     networks:
       - internal
     attach: false
-  deepseek:
-    build: ./deepseek-service
+  llm_rpc_client:
+    build: ./llm_rpc_client
     command: uvicorn entrypoint:app --reload --host 0.0.0.0 --port 82
-    container_name: deepseek
+    container_name: llm_rpc_client
     environment:
       - CHROMA=chromadb
       - OLLAMA_HOST=ollama

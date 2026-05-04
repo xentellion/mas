@@ -79,6 +79,24 @@
                 "ACTIVE_LLMS": "1"
             },
             // "preLaunchTask": "Start Containers"
+        },
+        {
+            "name": "Agent Debug Remote",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "${workspaceFolder}/agent_app/venv-agent/bin/python",
+            "program": "${workspaceFolder}/agent_app/main.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/agent_app",
+            "env": {
+                "LLM": "http://?????????????:8002",
+                "LLM_SELECTED": "deepseek-r1",
+                "LOG_PROMPTS": "True",
+                "TPS": "15",
+                "RMQ": "http://?????????????:5672",
+                "ACTIVE_LLMS": "1"
+            },
+            // "preLaunchTask": "Start Containers"
         }
     ]
 }

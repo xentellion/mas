@@ -128,6 +128,10 @@ class SimWorker(QRunnable):
             for x in filter(lambda x: x.state is State.COMPLETE, agents):
                 self.signals.agent_removed.emit(x.name)
             agents = list(filter(lambda x: x.state is not State.COMPLETE, agents))
+
+            if not agents and not prepared_agents and not prepared_planes:
+                sim_event_loop = False
+
             # Crutch to prevent re-rendering of agents if the simulation was stopped while waiting for llm
             if self.is_killed:
                 continue
@@ -144,6 +148,8 @@ class SimWorker(QRunnable):
             time_delta = TPS - (time.time() % TPS)
             if time_delta > 0:
                 time.sleep(time_delta)
+        print("Loop stopped")
+        self.signals.sim_stopped.emit("Complete")
 
     def toggle_pause(self):
         self.is_paused = not self.is_paused

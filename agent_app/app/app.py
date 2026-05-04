@@ -96,10 +96,12 @@ class MainWindow(QMainWindow):
 
         self.lock_buttons(False)
         self.worker = SimWorker(self.ren, STEP)
+        QApplication.instance().aboutToQuit.connect(self.worker.kill)
         self.worker.signals.new_agent.connect(self.__agent_deployed)
         self.worker.signals.agent_updated.connect(self.__agent_updated)
         self.worker.signals.agent_removed.connect(self.__agent_removed)
         self.worker.signals.agent_error.connect(self.__agent_error)
+        self.worker.signals.sim_stopped.connect(self.stop_sim)
 
         self.threadpool.start(self.worker)
 
@@ -115,7 +117,7 @@ class MainWindow(QMainWindow):
         self.worker.toggle_pause()
         self.pause_button.setText("Continue" if self.worker.is_paused else "Pause")
 
-    def stop_sim(self):
+    def stop_sim(self, message: str = "Stopped"):
         if not self.worker:
             return
         if self.worker.is_paused:
@@ -128,6 +130,7 @@ class MainWindow(QMainWindow):
         for x in deepcopy(list(self.agent_plates.keys())):
             self.__agent_removed(x)
         self.agent_plates.clear()
+        self.statusBar().showMessage(f"Simulation {message}")
 
     def lock_buttons(self, state: bool):
         self.start_button.setEnabled(state)
@@ -140,8 +143,9 @@ class MainWindow(QMainWindow):
 
     def select_model_method(self):
         try:
-            os.environ["LLM"] = (
-                f"http://localhost:{self.models[self.select_model.currentText()]}"
+            os.environ["LLM"] = "{0}:{1}".format(
+                os.getenv("LLM").split(":")[0],
+                self.models[self.select_model.currentText()],
             )
             os.environ["LLM_SELECTED"] = self.select_model.currentText()
         except KeyError:
@@ -180,4 +184,5 @@ class MainWindow(QMainWindow):
         self.__agent_generator.show()
 
     def __quit_app(self):
+        self.stop_sim()
         QApplication.quit()

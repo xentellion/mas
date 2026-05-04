@@ -84,7 +84,6 @@ class Agent:
                 ". ".join(self.status + [os.environ["PROMPT_END"]])
             )
             logging.info("%s -> %s", self.name, prompt)
-            # print(os.getenv("LLM_SELECTED"))
             path = self.get_path(prompt=prompt)
         except requests.HTTPError as e:
             logging.error(e)
