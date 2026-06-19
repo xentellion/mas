@@ -1,0 +1,23 @@
+{
+    "planes_count": 23,
+    "average_time_between": 23,
+    "allowed_models": [
+        "TestPlane"
+    ],
+    "arriving_part": 50,
+    "internal_route": 80,
+    "countries": [
+        "Russia",
+        "Belarus"
+    ],
+    "children": 11,
+    "young": 22,
+    "middle": 59,
+    "elderly": 7,
+    "gender_ratio": 79,
+    "purposes": [
+        "tourism",
+        "business",
+        "education"
+    ]
+}

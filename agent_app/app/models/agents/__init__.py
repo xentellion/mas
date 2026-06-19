@@ -1,6 +1,7 @@
 from .agent import Agent
 from .agent_task import AgentTask, WalkingTask, InteractingTask, CompletionTask
 from .plane import Plane
+from .simulation import Simulation
 
 
 __all__ = [
@@ -10,4 +11,5 @@ __all__ = [
     "InteractingTask",
     "CompletionTask",
     "Plane",
+    "Simulation",
 ]

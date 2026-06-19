@@ -90,9 +90,8 @@ fi
 
 # Dependencies
 echo "Installing dependencies"
-$VENV_PIP install --upgrade pip
+$VENV_PIP install --upgrade pip -q
 $VENV_PIP install -r "requirements.txt" -q
-echo "Installed."
 
 # Launch
 exec ./venv-agent/bin/python main.py "$@"
