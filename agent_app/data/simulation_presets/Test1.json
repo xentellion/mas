@@ -19,5 +19,6 @@
         "tourism",
         "business",
         "education"
-    ]
+    ],
+    "random_seed": 0
 }

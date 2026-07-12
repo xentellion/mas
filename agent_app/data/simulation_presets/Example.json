@@ -10,5 +10,6 @@
     "middle": 25,
     "elderly": 24,
     "gender_ratio": 50,
-    "purposes": []
+    "purposes": [],
+    "random_seed": 0
 }

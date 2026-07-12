@@ -1,5 +1,0 @@
-models:
-  - name: TestPlane
-    seats: 10
-  - name: TestPlaneBig
-    places: 100

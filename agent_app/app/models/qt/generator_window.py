@@ -4,6 +4,9 @@ from typing import Iterable
 from datetime import datetime
 
 import yaml
+from sqlalchemy import select
+
+# from sqlalchemy.orm import joinedload
 
 from PyQt6 import uic
 from PyQt6.QtCore import Qt
@@ -17,7 +20,9 @@ from PyQt6.QtWidgets import (
     QMessageBox,
 )
 from app.utils import load_ui
+from app.utils.database import with_orm_session, Country, Plane, TravelPurposes
 from app.models.agents.simulation import Simulation
+from app.core.global_states import global_state
 
 
 class GeneratorWindow(QMainWindow):
@@ -51,13 +56,13 @@ class GeneratorWindow(QMainWindow):
                 margin, margin, margin, margin
             )
 
-        planes = self.__load_file("planes", "models")
-        countries = self.__load_file("countries", "countries")
-        purposes = self.__load_file("travel_purposes", "purposes")
+        planes = self.__get_planes()
+        countries = self.__get_countries()
+        purposes = self.__get_purposes()
 
         self.__make_ui_tree_collapsible(self.modelsTree)
         self.__populate_ui_tree(
-            self.modelsTree, (x["name"] for x in planes), "Select used plane models"
+            self.modelsTree, (x for x in planes), "Select used plane models"
         )
 
         self.__make_ui_tree_collapsible(self.countriesTree)
@@ -95,6 +100,10 @@ class GeneratorWindow(QMainWindow):
         self.default_state = self.__set_simulation_state()
         self.current_state = None
 
+        self.actionSave.triggered.connect(self.save)
+        self.actionLoad.triggered.connect(self.load)
+        self.actionReset.triggered.connect(self.discard)
+
     def __set_simulation_state(self) -> Simulation:
         ages = self.get_ages()
         newSim: Simulation = Simulation(
@@ -111,6 +120,7 @@ class GeneratorWindow(QMainWindow):
             elderly=ages[3],
             gender_ratio=self.genderSpin.value(),
             purposes=self.get_selected_items(self.purposesTree),
+            random_seed=self.randomSeed.value(),
         )
         return newSim
 
@@ -255,6 +265,7 @@ class GeneratorWindow(QMainWindow):
 
     def ok(self):
         self.current_state = self.__set_simulation_state()
+        global_state.simulation = self.current_state
         self.close()
 
     def cancel(self):
@@ -319,6 +330,9 @@ class GeneratorWindow(QMainWindow):
         self.__apply_data(self.default_state)
 
     def __apply_data(self, sim: Simulation):
+        if sim is None:
+            logging.error("TRYING TO APPLY EMPTY SIMULATION")
+            return
         self.agentCountSlider.setValue(sim.planes_count)
         self.agentCountSpin.setValue(sim.average_time_between)
         self.arrivingSpin.setValue(sim.arriving_part)
@@ -341,6 +355,35 @@ class GeneratorWindow(QMainWindow):
         except FileNotFoundError:
             logging.error(f'File "{filename}" not found')
             return None
+
+    # @with_orm_session
+    # def __get_countries(self, session=None):
+    #     statement = select(Company).options(joinedload(Company.country_name))
+    #     data = session.scalars(statement).all()
+    #     result = sorted(set(x.country_name.name for x in data))
+    #     print(*result, sep="\n")
+    #     return result
+
+    @with_orm_session
+    def __get_countries(self, session=None):
+        statement = select(Country)
+        data = session.scalars(statement).all()
+        result = sorted(set(x.name for x in data))
+        return result
+
+    @with_orm_session
+    def __get_planes(self, session=None):
+        statement = select(Plane)
+        data = session.scalars(statement).all()
+        result = sorted(set(x.name for x in data))
+        return result
+
+    @with_orm_session
+    def __get_purposes(self, session=None):
+        statement = select(TravelPurposes)
+        data = session.scalars(statement).all()
+        result = sorted(set(x.purpose for x in data))
+        return result
 
     def __set_selected_items(self, tree_widget: QTreeWidget, allowed_items: list[str]):
         tree_widget.blockSignals(True)

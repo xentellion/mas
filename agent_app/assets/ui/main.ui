@@ -35,7 +35,7 @@
        </layout>
       </item>
       <item>
-       <layout class="QHBoxLayout" name="sim_buttons" stretch="0,0,0,0,0,0,0,0">
+       <layout class="QHBoxLayout" name="sim_buttons" stretch="0,0,0,0,0,0,0,0,0,0">
         <property name="sizeConstraint">
          <enum>QLayout::SizeConstraint::SetMinimumSize</enum>
         </property>
@@ -173,6 +173,26 @@
         </item>
         <item>
          <spacer name="horizontalSpacer_2">
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButton">
+          <property name="text">
+           <string>Generate Agents</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer_5">
           <property name="orientation">
            <enum>Qt::Orientation::Horizontal</enum>
           </property>
@@ -422,7 +442,7 @@
   </action>
   <action name="actionGenerate">
    <property name="text">
-    <string>Generate Agents</string>
+    <string>Set Generation Parameters</string>
    </property>
   </action>
   <action name="actionSelect_agent_list">

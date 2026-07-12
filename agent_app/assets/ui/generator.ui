@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>772</width>
-    <height>709</height>
+    <width>787</width>
+    <height>783</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -334,7 +334,7 @@
              <item row="1" column="0">
               <widget class="QLabel" name="frequencyLabel">
                <property name="text">
-                <string>ATB, min</string>
+                <string>Flight min Δt</string>
                </property>
               </widget>
              </item>
@@ -447,6 +447,33 @@
      </layout>
     </item>
     <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_5">
+      <item>
+       <widget class="QLabel" name="label_6">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="MinimumExpanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Random Seed</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QSpinBox" name="randomSeed">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
      <layout class="QHBoxLayout" name="horizontalLayout">
       <item>
        <spacer name="horizontalSpacer">
@@ -490,7 +517,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>772</width>
+     <width>787</width>
      <height>30</height>
     </rect>
    </property>
@@ -500,7 +527,6 @@
     </property>
     <addaction name="actionLoad"/>
     <addaction name="actionSave"/>
-    <addaction name="actionSave_As"/>
     <addaction name="actionReset"/>
    </widget>
    <widget class="QMenu" name="menuHelp">

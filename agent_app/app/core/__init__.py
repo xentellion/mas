@@ -1,9 +1,11 @@
 from .area import AreaRender
 from .pathfinder import Pathfinder
 from .worker import SimWorker
+from .global_states import GlobalStates
 
 __all__ = [
     "AreaRender",
     "Pathfinder",
     "SimWorker",
+    "GlobalStates",
 ]

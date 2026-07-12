@@ -19,6 +19,7 @@ from PyQt6.QtCore import QThreadPool
 
 from app.utils import data
 from app.core import AreaRender, SimWorker
+from app.core.global_states import global_state
 from app.models.agents import agent_task, Agent
 from app.models.qt import AgentPlate, GeneratorWindow
 from app.core.constants import STEP
@@ -104,6 +105,13 @@ class MainWindow(QMainWindow):
         self.worker.signals.sim_stopped.connect(self.stop_sim)
 
         self.threadpool.start(self.worker)
+
+        global_state.signals.valueChanged.connect(
+            lambda: print(global_state.simulation)
+        )
+
+    def generate_agents(self):
+        pass
 
     def restart_sim(self):
         if not self.worker:
