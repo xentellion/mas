@@ -6,8 +6,6 @@ from datetime import datetime
 import yaml
 from sqlalchemy import select
 
-# from sqlalchemy.orm import joinedload
-
 from PyQt6 import uic
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
@@ -19,9 +17,12 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QMessageBox,
 )
+
 from app.utils import load_ui
 from app.utils.database import with_orm_session, Country, Plane, TravelPurposes
 from app.models.agents.simulation import Simulation
+
+from app.models.qt import SelectCountry
 from app.core.global_states import global_state
 
 
@@ -33,6 +34,10 @@ class GeneratorWindow(QMainWindow):
         self.data_loaded: bool = False
 
         margin: int = 12
+
+        self.new_window = None
+        self.selected_countries = []
+        self.selectCountryButton.clicked.connect(self.__open__select_country)
 
         # Age
         self.ageSlider.setValue((25, 50, 75))
@@ -57,7 +62,6 @@ class GeneratorWindow(QMainWindow):
             )
 
         planes = self.__get_planes()
-        countries = self.__get_countries()
         purposes = self.__get_purposes()
 
         self.__make_ui_tree_collapsible(self.modelsTree)
@@ -65,10 +69,10 @@ class GeneratorWindow(QMainWindow):
             self.modelsTree, (x for x in planes), "Select used plane models"
         )
 
-        self.__make_ui_tree_collapsible(self.countriesTree)
-        self.__populate_ui_tree(
-            self.countriesTree, countries, "Select available countries"
-        )
+        # self.__make_ui_tree_collapsible(self.countriesTree)
+        # self.__populate_ui_tree(
+        #     self.countriesTree, countries, "Select available countries"
+        # )
 
         self.__make_ui_tree_collapsible(self.purposesTree)
         self.__populate_ui_tree(
@@ -104,6 +108,8 @@ class GeneratorWindow(QMainWindow):
         self.actionLoad.triggered.connect(self.load)
         self.actionReset.triggered.connect(self.discard)
 
+        # self.
+
     def __set_simulation_state(self) -> Simulation:
         ages = self.get_ages()
         newSim: Simulation = Simulation(
@@ -112,7 +118,7 @@ class GeneratorWindow(QMainWindow):
             allowed_models=self.get_selected_items(self.modelsTree),
             arriving_part=self.arrivingSpin.value(),
             internal_route=self.internalSpin.value(),
-            countries=self.get_selected_items(self.countriesTree),
+            countries=self.selected_countries,
             # passengers
             children=ages[0],
             young=ages[1],
@@ -356,6 +362,18 @@ class GeneratorWindow(QMainWindow):
             logging.error(f'File "{filename}" not found')
             return None
 
+    def __open__select_country(self):
+        if self.new_window is None:
+            self.new_window = SelectCountry(self, self.__get_countries())
+            self.new_window.submitted.connect(self.__receive_list)
+            self.new_window.show()
+        else:
+            # self.new_window.raise_()
+            self.new_window.activateWindow()
+
+    def __receive_list(self, data_list):
+        self.selected_countries = data_list
+
     # @with_orm_session
     # def __get_countries(self, session=None):
     #     statement = select(Company).options(joinedload(Company.country_name))
@@ -363,6 +381,12 @@ class GeneratorWindow(QMainWindow):
     #     result = sorted(set(x.country_name.name for x in data))
     #     print(*result, sep="\n")
     #     return result
+
+    # TODO
+    # 1) Get companies selector
+    # 2) Add tab for each company
+    # 3) Serialize that shit for Simulation class
+    # 4) make Generate button actually make agents
 
     @with_orm_session
     def __get_countries(self, session=None):
