@@ -60,6 +60,7 @@ class MainWindow(QMainWindow):
         self.stop_button.clicked.connect(self.stop_sim)
         self.select_model.currentTextChanged.connect(self.select_model_method)
         self.select_model.setPlaceholderText(f"Default: {os.environ["LLM_SELECTED"]}")
+        self.createAgentsButton.clicked.connect(self.create_agents)
 
         self.__agent_generator = GeneratorWindow()
 
@@ -106,12 +107,8 @@ class MainWindow(QMainWindow):
 
         self.threadpool.start(self.worker)
 
-        global_state.signals.valueChanged.connect(
-            lambda: print(global_state.simulation)
-        )
-
-    def generate_agents(self):
-        pass
+    def create_agents(self):
+        print(global_state.simulation)
 
     def restart_sim(self):
         if not self.worker:

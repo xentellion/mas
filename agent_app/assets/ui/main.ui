@@ -185,7 +185,7 @@
          </spacer>
         </item>
         <item>
-         <widget class="QPushButton" name="pushButton">
+         <widget class="QPushButton" name="createAgentsButton">
           <property name="text">
            <string>Generate Agents</string>
           </property>

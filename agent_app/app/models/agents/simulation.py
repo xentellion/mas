@@ -1,17 +1,10 @@
 import random
 
 from pydantic import BaseModel
-from app.models.agents import Agent, Plane
+from app.models.agents import Plane
 
 
-class Simulation(BaseModel):
-    # planes
-    planes_count: int
-    average_time_between: int
-    allowed_models: list[str]
-    arriving_part: int
-    internal_route: int
-    countries: list[str]
+class SimulationCompany(BaseModel):
     # passengers
     children: int
     young: int
@@ -19,8 +12,18 @@ class Simulation(BaseModel):
     elderly: int
     gender_ratio: int
     purposes: list[str]
-    # extra
+    # planes
+    planes_count: int
+    average_time_between: int
+    allowed_models: list[str]
+    arriving_part: int
+    internal_route: int
+
+
+class Simulation(BaseModel):
     random_seed: int
+    countries: list[str]
+    companies: dict[str, SimulationCompany]
 
     def generate_agents(self) -> tuple(list):
         prepared_agents = []

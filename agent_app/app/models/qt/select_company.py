@@ -14,12 +14,12 @@ from PyQt6.QtWidgets import (
 NUM_COLUMNS = 2
 
 
-class SelectCountry(QWidget):
+class SelectCompany(QWidget):
     submitted = pyqtSignal(list)
 
     def __init__(self, parent_window, items_list, selected_list):
         super().__init__()
-        self.setWindowTitle("Select countries")
+        self.setWindowTitle("Select companies")
         self.resize(300, 200)
 
         self.parent_window = parent_window
@@ -76,5 +76,5 @@ class SelectCountry(QWidget):
     def closeEvent(self, event):
         # bruh how is it even safe
         # screw you i ain't making circular imports
-        self.parent_window.country_window = None
+        self.parent_window.company_window = None
         event.accept()
