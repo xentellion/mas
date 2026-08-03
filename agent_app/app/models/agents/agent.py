@@ -5,7 +5,6 @@ import logging
 import os
 
 from collections import deque, Counter
-import uuid
 import json
 
 import requests
@@ -27,7 +26,6 @@ class Agent:
     """
 
     def __init__(self, name: str, prompt: str):
-        self.id = uuid.uuid4()
         self.name = name
         self.__current_task = None
         self.tasks = deque()

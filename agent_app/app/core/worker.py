@@ -2,23 +2,25 @@ import os
 import json
 import logging
 import time
+import uuid
+from copy import deepcopy
 
 from PyQt6.QtCore import QRunnable, pyqtSlot
 
 from app.core import AreaRender
+from app.core.constants import TPS
+from app.core.global_state import GLOBAL_STATE
 from app.models import PreparedAgent, PreparedPlane
 from app.models.agents import Agent, Plane, agent_task
 from app.models.graph import interactable
 from app.models.qt import WorkerSignals
 from app.utils import StartPrompt, State
-from app.core.constants import TPS
 
 
 class SimWorker(QRunnable):
-    signals = WorkerSignals()
-
     def __init__(self, ren: AreaRender = None, step: int = 1):
         super().__init__()
+        self.signals = WorkerSignals()
         self.step = step
         self.ren = ren
         self.is_paused = False
@@ -61,13 +63,16 @@ class SimWorker(QRunnable):
 
     def main(self):
         if self.ren is None:
+            logging.error("No map found")
             return
-        agents: list[Agent] = []
 
+        # @TODO replace json with setup from generatyor
         prepared_agents, prepared_planes = self.load_starting_positions(
             "data/init_setup.json"
         )
         tick_count = 0
+
+        agents: dict[str, Agent] = deepcopy(GLOBAL_STATE.agents)
 
         sim_event_loop = True
         while sim_event_loop:
@@ -77,6 +82,7 @@ class SimWorker(QRunnable):
             if self.is_killed:
                 sim_event_loop = False
                 continue
+
             prepared_agents.sort(key=lambda x: x.spawn_time)
             prepared_planes.sort(key=lambda x: x.spawn_time)
 
@@ -100,34 +106,37 @@ class SimWorker(QRunnable):
                         self.ren.graph, self.ren.interactables, self.step
                     )
                     if new_ag is not None:
-                        self.signals.new_agent.emit(new_ag)
-                        agents.append(new_ag)
+                        self.signals.new_agent.emit(str(uuid.uuid4()), new_ag)
 
-            for a in agents:
+            for _id, agt in agents.items():
                 try:
-                    new_pos = a.tick(self.ren.graph, self.ren.interactables)
+                    new_pos = agt.tick(self.ren.graph, self.ren.interactables)
                 except AttributeError as e:
                     logging.error(f"Can't process agent tick: {e}")
                     self.signals.agent_error.emit(str(e))
                     self.toggle_pause()
                     break
                 if new_pos is None:
-                    a.change_task(self.ren.graph)
-                    self.signals.agent_updated.emit(a)
+                    agt.change_task(self.ren.graph)
 
-                    if a.current_task is None and a.state is State.WALKING:
-                        if a.position in self.ren.interactables_mapping:
+                    if agt.current_task is None and agt.state is State.WALKING:
+                        if agt.position in self.ren.interactables_mapping:
                             inter = self.ren.interactables[
-                                self.ren.interactables_mapping[a.position]
+                                self.ren.interactables_mapping[agt.position]
                             ]
-                            a.add_task(inter.get_task(a))
+                            new_task = inter.get_task(agt)
+                            agt.add_task(new_task)
                 else:
-                    if isinstance(a.current_task, agent_task.WalkingTask):
-                        a.move(self.ren.graph.get_node(new_pos).point.xy, new_pos)
+                    if isinstance(agt.current_task, agent_task.WalkingTask):
+                        agt.move(self.ren.graph.get_node(new_pos).point.xy, new_pos)
+                self.signals.agent_updated.emit(_id, agt)
+                if agt.state == State.COMPLETE:
+                    self.signals.agent_removed.emit(_id)
 
-            for x in filter(lambda x: x.state is State.COMPLETE, agents):
-                self.signals.agent_removed.emit(x.name)
-            agents = list(filter(lambda x: x.state is not State.COMPLETE, agents))
+            # Throttle to let main thread catch up
+            time.sleep(0.01)
+
+            agents = deepcopy(GLOBAL_STATE.agents)
 
             if not agents and not prepared_agents and not prepared_planes:
                 sim_event_loop = False
@@ -136,18 +145,24 @@ class SimWorker(QRunnable):
             if self.is_killed:
                 continue
 
-            self.ren.agent_items.setData(
-                spots=[
-                    {"pos": tuple(self.ren.graph.get_node(a.position).xy)}
-                    for a in agents
-                ]
-            )
-            self.ren.update()
+            # self.ren.agent_items.setData(
+            #     spots=[
+            #         {"pos": tuple(self.ren.graph.get_node(a.position).xy)}
+            #         for a in agents.values()
+            #     ]
+            # )
+            # self.ren.update()
+            spots = [
+                {"pos": tuple(self.ren.graph.get_node(a.position).xy)}
+                for a in agents.values()
+            ]
+            self.signals.agent_positions.emit(spots)
 
             tick_count += 1
             time_delta = TPS - (time.time() % TPS)
             if time_delta > 0:
                 time.sleep(time_delta)
+            self.signals.sim_tick.emit(tick_count)
         print("Loop stopped")
         self.signals.sim_stopped.emit("Complete")
 
@@ -156,4 +171,4 @@ class SimWorker(QRunnable):
 
     def kill(self):
         self.is_killed = True
-        logging.info("Simulation stopped\n" + "-" * 40)
+        logging.info(f"Simulation stopped\n{"-" * 40}")

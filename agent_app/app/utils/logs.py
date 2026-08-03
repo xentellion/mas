@@ -1,5 +1,4 @@
 import os
-import logging
 
 
 def delete_oldest_logs(path: str = "logs", logs_count: int = 10):
@@ -16,6 +15,5 @@ def delete_oldest_logs(path: str = "logs", logs_count: int = 10):
     for file in files[logs_count - 1 : -2]:
         try:
             os.remove(file)
-            logging.info(f"Oldest log cleared: {file}")
         except OSError as e:
-            logging.error(f"Error deleting file {file}: {e}")
+            print(f"Error deleting file {file}: {e}")

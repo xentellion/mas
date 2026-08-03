@@ -21,7 +21,7 @@ from app.utils.database import with_orm_session, Country, Company
 from app.models.agents.simulation import Simulation
 
 from app.models.qt import SelectCountry, SelectCompany, CompanyData
-from app.core.global_states import global_state
+from app.core.global_state import GLOBAL_STATE
 
 
 RANDOM_MAX_ORDER = 31
@@ -105,7 +105,7 @@ class GeneratorWindow(QMainWindow):
 
     def ok(self):
         self.current_state = self.__set_simulation_state()
-        global_state.simulation = self.current_state
+        GLOBAL_STATE.simulation = self.current_state
         self.close()
 
     def cancel(self):
@@ -265,7 +265,6 @@ class GeneratorWindow(QMainWindow):
         pass
 
     # TODO
-    # 3) Serialize that shit for Simulation class
     # 4) make Generate button actually make agents
 
     @with_orm_session
