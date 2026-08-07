@@ -17,7 +17,7 @@ from PyQt6 import uic
 from PyQt6.QtCore import QThreadPool, pyqtSlot
 
 from app.utils import data
-from app.core import AreaRender, SimWorker
+from app.core import AreaRender, SimWorker, Spawner
 from app.core.global_state import GLOBAL_STATE
 from app.models.agents import agent_task, Agent
 from app.models.qt import AgentPlate, GeneratorWindow
@@ -36,6 +36,7 @@ class MainWindow(QMainWindow):
         self.mpl_show.setLayout(self.layout)
 
         self.threadpool = QThreadPool()
+        self.spawner = Spawner()
         self.worker = None
         self._worker_signal_handlers = [
             (lambda w: w.signals.new_agent, self.__agent_deployed),
@@ -88,7 +89,7 @@ class MainWindow(QMainWindow):
         self.select_model_method()
 
     def prepare_sim(self, step):
-        data.load_prompts()
+        # data.load_prompts()
         ren = AreaRender(step, False)
         return ren
 
@@ -106,12 +107,15 @@ class MainWindow(QMainWindow):
         self.statusBar().setStyleSheet("")
 
         self.lock_buttons(False)
-        self.worker = SimWorker(self.ren, STEP)
+
+        self.worker = SimWorker(self.ren, self.spawner, STEP)
         self.__handle_connections()
         self.threadpool.start(self.worker)
 
     def create_agents(self):
-        print(GLOBAL_STATE.simulation)
+        gen = self.spawner.generate()
+        if not gen:
+            self.statusBar().showMessage("No valid generation settings found")
 
     def restart_sim(self):
         if not self.worker:
@@ -136,8 +140,13 @@ class MainWindow(QMainWindow):
         self.worker.ren.reset_area()
         self.worker.ren.update()
 
+        for _, plate in self.agent_plates.items():
+            self.agents_list.layout().removeWidget(plate)
+            plate.deleteLater()
         self.agent_plates.clear()
+        GLOBAL_STATE.agents.clear()
         self.worker = None
+        self.spawner = Spawner()
         self.statusBar().showMessage(f"Simulation {message}")
 
     def lock_buttons(self, state: bool):

@@ -1,0 +1,16 @@
+# General prompt parts
+prompt_start: You are a passenger arriving at the airport.
+prompt_person: You are {} {}.
+prompt_arriving: You have just got off the plane and you have to leave the airport. For this you are strictly required to pass through every point described for Arrival. You can't leave the airport until you visit all the necessary points for Arrival. {}
+prompt_departing: You need to board the plane. For this you have to pass through every point described for Departure. You can't board the plane until you visit all the necessary points for Departure. {}
+prompt_end: "Answer where you will go next. You MUST answer using only the name of your target place."
+# Fill ins
+prompt_age:
+  - "a child"
+  - "a young adult"
+  - "a middle aged"
+  - "a senior"
+prompt_gender:
+  - "man"
+  - "woman"
+

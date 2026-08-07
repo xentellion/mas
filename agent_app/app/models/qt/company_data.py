@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
 )
 
 from app.utils import load_ui
-from app.utils.database import with_orm_session, Plane, TravelPurposes
+from app.utils.database import with_orm_session, PlaneTable, TravelPurposes
 from app.models.agents.simulation import SimulationCompany
 
 
@@ -56,7 +56,7 @@ class CompanyData(QWidget):
 
     @with_orm_session
     def __get_planes(self, session=None):
-        statement = select(Plane)
+        statement = select(PlaneTable)
         data = session.scalars(statement).all()
         result = sorted(set(x.name for x in data))
         return result

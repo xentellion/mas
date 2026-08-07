@@ -1,46 +1,45 @@
 {
-    "random_seed": 1608939076,
+    "random_seed": 550317492,
     "countries": [
         "Qatar",
         "Russia"
     ],
     "companies": {
+        "Aeroflot": {
+            "children": 12,
+            "young": 22,
+            "middle": 39,
+            "elderly": 26,
+            "gender_ratio": 53,
+            "purposes": [
+                "business",
+                "education"
+            ],
+            "planes_count": 1,
+            "average_time_between": 1,
+            "allowed_models": [
+                "TestPlane"
+            ],
+            "arriving_part": 0,
+            "internal_route": 0
+        },
         "Qatar Airways": {
             "children": 9,
-            "young": 29,
-            "middle": 43,
-            "elderly": 18,
-            "gender_ratio": 54,
+            "young": 41,
+            "middle": 25,
+            "elderly": 24,
+            "gender_ratio": 46,
             "purposes": [
                 "business",
                 "tourism"
             ],
-            "planes_count": 10,
-            "average_time_between": 10,
+            "planes_count": 1,
+            "average_time_between": 1,
             "allowed_models": [
-                "TestBig",
                 "TestPlane"
             ],
-            "arriving_part": 50,
+            "arriving_part": 99,
             "internal_route": 0
-        },
-        "Aeroflot": {
-            "children": 15,
-            "young": 35,
-            "middle": 38,
-            "elderly": 11,
-            "gender_ratio": 50,
-            "purposes": [
-                "education",
-                "tourism"
-            ],
-            "planes_count": 10,
-            "average_time_between": 10,
-            "allowed_models": [
-                "TestPlane"
-            ],
-            "arriving_part": 50,
-            "internal_route": 40
         }
     }
 }

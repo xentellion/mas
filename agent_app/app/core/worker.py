@@ -1,5 +1,3 @@
-import os
-import json
 import logging
 import time
 import uuid
@@ -7,20 +5,20 @@ from copy import deepcopy
 
 from PyQt6.QtCore import QRunnable, pyqtSlot
 
-from app.core import AreaRender
+from app.core import AreaRender, Spawner
 from app.core.constants import TPS
 from app.core.global_state import GLOBAL_STATE
-from app.models import PreparedAgent, PreparedPlane
-from app.models.agents import Agent, Plane, agent_task
+from app.models.agents import Agent, agent_task
 from app.models.graph import interactable
 from app.models.qt import WorkerSignals
-from app.utils import StartPrompt, State
+from app.utils import State
 
 
 class SimWorker(QRunnable):
-    def __init__(self, ren: AreaRender = None, step: int = 1):
+    def __init__(self, ren: AreaRender = None, spawner: Spawner = None, step: int = 1):
         super().__init__()
         self.signals = WorkerSignals()
+        self.spawner = spawner
         self.step = step
         self.ren = ren
         self.is_paused = False
@@ -31,47 +29,15 @@ class SimWorker(QRunnable):
         logging.info("Simulation started")
         self.main()
 
-    def load_starting_positions(self, path):
-        prepared_agents = []
-        prepared_planes = []
-        with open(path, "r", encoding="UTF-8") as f:
-            data = json.load(f)
-            for plane in data["planes"]:
-                spawn_time = plane["spawn_time"]
-                del plane["spawn_time"]
-
-                passengers = []
-                for psng in plane["passengers"]:
-                    passengers.append(
-                        Agent(
-                            psng["name"],
-                            os.environ[StartPrompt(int(psng["initial_state"])).name],
-                        )
-                    )
-                plane["passengers"] = passengers
-
-                prepared_planes.append(
-                    PreparedPlane(plane=Plane(**plane), spawn_time=spawn_time)
-                )
-            for psng in data["departing_passengers"]:
-                psng["agent"] = Agent(
-                    psng["agent"]["name"],
-                    os.environ[StartPrompt(int(psng["agent"]["initial_state"])).name],
-                )
-                prepared_agents.append(PreparedAgent(**psng))
-        return prepared_agents, prepared_planes
-
     def main(self):
         if self.ren is None:
             logging.error("No map found")
             return
+        if self.spawner is None:
+            logging.error("No spawner found")
+            return
 
-        # @TODO replace json with setup from generatyor
-        prepared_agents, prepared_planes = self.load_starting_positions(
-            "data/init_setup.json"
-        )
         tick_count = 0
-
         agents: dict[str, Agent] = deepcopy(GLOBAL_STATE.agents)
 
         sim_event_loop = True
@@ -83,22 +49,25 @@ class SimWorker(QRunnable):
                 sim_event_loop = False
                 continue
 
-            prepared_agents.sort(key=lambda x: x.spawn_time)
-            prepared_planes.sort(key=lambda x: x.spawn_time)
-
-            for loaded in prepared_planes.copy():
-                if loaded.spawn_time > tick_count:
-                    break
-                self.ren.interactables[loaded.plane.gate].add_plane(loaded.plane)
-                prepared_planes.remove(loaded)
-
-            for loaded in prepared_agents.copy():
-                if loaded.spawn_time > tick_count:
-                    break
-                self.ren.interactables[loaded.spawn_point].add_new_agent(
-                    loaded.agent, self.ren.graph, loaded.flight, ""
-                )
-                prepared_agents.remove(loaded)
+            prepared_planes = self.spawner.pull(tick_count)
+            for plane in prepared_planes:
+                if plane.plane.is_arriving:
+                    self.ren.interactables["gate_2"].add_plane(plane.plane)
+                else:
+                    for p in plane.plane.passengers:
+                        self.ren.interactables["entrance"].add_new_agent(
+                            p, self.ren.graph, plane.plane.name, ""
+                        )
+            # prepared_agents = self.spawner.pull(tick_count)
+            # for agt in prepared_agents:
+            #     if isinstance(agt.agent, PreparedPlane):
+            #         self.ren.interactables[agt.agent.plane.gate].add_plane(
+            #             agt.agent.plane
+            #         )
+            #     else:
+            #         self.ren.interactables[agt.dest].add_new_agent(
+            #             agt.agent.agent, self.ren.graph, agt.agent.flight, ""
+            #         )
 
             for point in self.ren.interactables.values():
                 if isinstance(point, (interactable.Entrance, interactable.Gate)):
@@ -138,20 +107,13 @@ class SimWorker(QRunnable):
 
             agents = deepcopy(GLOBAL_STATE.agents)
 
-            if not agents and not prepared_agents and not prepared_planes:
+            if not agents and not prepared_planes:
                 sim_event_loop = False
 
             # Crutch to prevent re-rendering of agents if the simulation was stopped while waiting for llm
             if self.is_killed:
                 continue
 
-            # self.ren.agent_items.setData(
-            #     spots=[
-            #         {"pos": tuple(self.ren.graph.get_node(a.position).xy)}
-            #         for a in agents.values()
-            #     ]
-            # )
-            # self.ren.update()
             spots = [
                 {"pos": tuple(self.ren.graph.get_node(a.position).xy)}
                 for a in agents.values()

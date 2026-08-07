@@ -138,7 +138,7 @@
              <item row="1" column="3">
               <widget class="QLabel" name="label_11">
                <property name="text">
-                <string>Elderly</string>
+                <string>Senior</string>
                </property>
               </widget>
              </item>
@@ -258,8 +258,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>447</width>
-          <height>295</height>
+          <width>468</width>
+          <height>286</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_2">

@@ -15,25 +15,41 @@ from . import agent_task
 from app.models.graph import Graph
 from app.utils import State
 from app.core.constants import LOG_PROMPTS
+from app.core.global_state import GLOBAL_STATE
 
 
 class Agent:
-    """Describes active agent, capable of interacting with the environment
-
-    Args:
-        name (str): agent name
-        prompt (str): LLM prompt, used to describe the agent
-    """
-
-    def __init__(self, name: str, prompt: str):
+    def __init__(self, name: str, prompt: tuple):
         self.name = name
         self.__current_task = None
         self.tasks = deque()
+
         self.position = None
         self.state = State.IDLE
 
-        self.__prompt = prompt
+        self.__prompt = None
+        self.prompt = prompt
+
         self.status = []
+
+    @property
+    def prompt(self):
+        return self.__prompt
+
+    @prompt.setter
+    def prompt(self, prompt: tuple):
+        prompt_fill = [GLOBAL_STATE.prompts["prompt_start"]]
+        prompt_fill.append(
+            GLOBAL_STATE.prompts["prompt_person"].format(
+                GLOBAL_STATE.prompts["prompt_age"][prompt[0]],
+                GLOBAL_STATE.prompts["prompt_gender"][prompt[1]],
+            )
+        )
+        prompt_fill.append(
+            GLOBAL_STATE.prompts["prompt_arriving" if prompt[2] else "prompt_departing"]
+        )
+        prompt_fill.append(GLOBAL_STATE.prompts["prompt_end"])
+        self.__prompt = " ".join(prompt_fill)
 
     @property
     def current_task(self) -> agent_task.AgentTask:
@@ -78,9 +94,7 @@ class Agent:
             self.__current_task = None
         tm = datetime.datetime.now()
         try:
-            prompt = self.__prompt.format(
-                ". ".join(self.status + [os.environ["PROMPT_END"]])
-            )
+            prompt = self.prompt.format(". ".join(self.status))
             logging.info("%s -> %s", self.name, prompt)
             path = self.get_path(prompt=prompt)
         except requests.HTTPError as e:
@@ -174,7 +188,10 @@ class Agent:
         self.position = index
 
     def reset_status(self, is_departing: bool = True, extra_message=""):
-        self.__prompt = os.environ[
+        self.prompt = os.environ[
             "PROMPT_DEPARTING" if is_departing else "PROMPT_ARRIVING"
         ]
         self.status = [extra_message]
+
+    def prompt_constructor(self, data):
+        pass

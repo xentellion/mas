@@ -1,7 +1,0 @@
-{
-    "prompt_departing_ru": "Ты - посетитель аэропорта. Ты зашел на территорию аэропорта и тебе нужно сесть на самолет. {}. Тебе нужно пройти все пункты, перечисленные в базе данных прежде, чем сесть на самолет. Ты не можешь сразу сесть на самолет. Куда ты отправишься далее? Напиши ответ кратко, названием места на английском, куда тебе нужно идти",
-    "prompt_arriving_ru": "Ты - посетитель аэропорта. {} Нужно пройти все пункты, перечисленные в базе данных прежде, чем покинуть аэропорт. Куда ты отправишься далее? Напиши ответ кратко, названием места на английском, куда тебе нужно идти.",
-    "prompt_arriving": "You are a passenger arriving at the airport. You have just got off the plane and you have to leave the airport. For this you are strictly required to pass through every point described for Arrival. You can't leave the airport until you visit all the necessary points for Arrival. {}",
-    "prompt_departing": "You are a passenger arriving at the airport. You need to board the plane. For this you have to pass through every point described for Departure. You can't board the plane until you visit all the necessary points for Departure. {}",
-    "prompt_end": "Answer where you will go next. You MUST answer using only the name of your target place."
-}

@@ -1,7 +1,4 @@
-import random
-
 from pydantic import BaseModel
-from app.models.agents import Plane
 
 
 class SimulationCompany(BaseModel):
@@ -24,23 +21,3 @@ class Simulation(BaseModel):
     random_seed: int
     countries: list[str]
     companies: dict[str, SimulationCompany]
-
-    def generate_agents(self) -> tuple(list):
-        prepared_agents = []
-        prepared_planes = []
-
-        for i in self.planes_count:
-            plane = Plane()
-            prepared_planes.append(plane)
-        # generate planes
-        # on each plane generate agents
-        # get passengers from the ariving plane and shove them into the general pool
-
-        return prepared_agents, prepared_planes
-
-    # def plane
-    def generate_flight_number():
-        airlines = ["AAL", "DAL", "UAL", "BAW", "DLH", "AFR", "QFA"]
-        carrier = random.choice(airlines)
-        number = random.randint(100, 9999)
-        return f"{carrier}{number}"

@@ -1,17 +1,17 @@
 import os
-import json
 import logging
 
+import yaml
 
-def load_prompts(path="data/prompt.json"):
-    with open(path, "r", encoding="UTF-8") as f:
-        try:
-            data = json.load(f)
-        except FileNotFoundError:
-            logging.error("Failed to load prompts")
-            return None
-        for k, v in data.items():
-            os.environ[str(k).upper()] = str(v)
+
+def load_prompts(path: str = "data/prompt_data.yaml") -> dict[str, str]:
+    try:
+        with open(path, "r", encoding="UTF-8") as f:
+            data = yaml.safe_load(f) or {}
+            return data if isinstance(data, dict) else {}
+    except Exception as e:
+        logging.error(f"Error loading prompts:\n{e}")
+        return {}
 
 
 def load_ui(path):

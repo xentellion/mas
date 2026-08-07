@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from app.models.agents.simulation import Simulation
-from app.models.agents import Agent
+from app.utils import load_prompts
 
 
 class StateChanged(QObject):
@@ -10,10 +10,13 @@ class StateChanged(QObject):
 
 
 class GlobalStates(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
     signals: StateChanged = Field(default_factory=StateChanged, exclude=True)
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
     simulation: Simulation = None
-    agents: dict[str, Agent] = {}
+
+    prompts: dict[str, str] = Field(default_factory=load_prompts)
+    agents: dict[str, object] = {}
     tick: int = 0
 
     def __setattr__(self, name: str, value) -> None:

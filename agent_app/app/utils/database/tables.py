@@ -27,7 +27,7 @@ class Company(Base):
     icao: Mapped[str] = mapped_column(String, unique=True)
 
 
-class Plane(Base):
+class PlaneTable(Base):
     __tablename__ = "plane"
     id: Mapped[int] = mapped_column(
         Integer, primary_key=True, autoincrement=True, unique=True
