@@ -2,6 +2,8 @@ import logging
 import time
 import uuid
 from copy import deepcopy
+from typing import Any, Callable
+import queue
 
 from PyQt6.QtCore import QRunnable, pyqtSlot
 
@@ -24,10 +26,38 @@ class SimWorker(QRunnable):
         self.is_paused = False
         self.is_killed = False
 
+        self._request_queue = queue.Queue()
+        self.request_handler = None
+
+    def enqueue_request(self, req: Any) -> None:
+        self._request_queue.put(req)
+
+    def set_request_handler(self, handler: Callable) -> None:
+        self.request_handler = handler
+
     @pyqtSlot()
     def run(self):
         logging.info("Simulation started")
         self.main()
+
+    def _process_external_requests(self):
+        try:
+            while True:
+                req = self._request_queue.get_nowait()
+                try:
+                    if self.request_handler:
+                        self.request_handler(req)
+                    else:
+                        # default: emit a generic signal so UI/main thread can react
+                        try:
+                            self.signals.message.emit(str(req))
+                        except Exception:
+                            # fallback to logging
+                            logging.info("AI Tool request: %s", req)
+                finally:
+                    self._request_queue.task_done()
+        except queue.Empty:
+            pass
 
     def main(self):
         if self.ren is None:
@@ -48,6 +78,8 @@ class SimWorker(QRunnable):
             if self.is_killed:
                 sim_event_loop = False
                 continue
+
+            self._process_external_requests()
 
             prepared_planes = self.spawner.pull(tick_count)
             for plane in prepared_planes:

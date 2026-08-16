@@ -18,7 +18,7 @@
             "planes_count": 1,
             "average_time_between": 1,
             "allowed_models": [
-                "TestPlane"
+                "TestTiny"
             ],
             "arriving_part": 0,
             "internal_route": 0
@@ -36,7 +36,7 @@
             "planes_count": 1,
             "average_time_between": 1,
             "allowed_models": [
-                "TestPlane"
+                "TestTiny"
             ],
             "arriving_part": 99,
             "internal_route": 0

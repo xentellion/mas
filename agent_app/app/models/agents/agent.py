@@ -143,11 +143,6 @@ class Agent:
             return await response.read()
 
     def add_task(self, task: agent_task.AgentTask):
-        """Add new task to the list of available tasks
-
-        Args:
-            task (agent_task.AgentTask): new task
-        """
         if task is None:
             return
         elif task.priority:

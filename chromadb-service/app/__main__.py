@@ -1,10 +1,10 @@
 import os
 import chromadb
 
-# import json
+import json
 
 collection_name = "ZE_TEST"
-chroma_client = chromadb.HttpClient(host="localhost", port=8070)
+chroma_client = chromadb.HttpClient(host="firewalker.space", port=8070)
 try:
     chroma_client.delete_collection(collection_name)
 except chromadb.errors.NotFoundError:
@@ -29,10 +29,8 @@ collection.add(
     documents=list(documents[2]),
 )
 
-# res = collection.query(
-#     query_texts=[
-#         "Список существующих точек, с которыми можно производить взаимодействия"
-#     ],
-#     n_results=1,
-# )
-# print(json.dumps(res, sort_keys=False, indent=4, ensure_ascii=False))
+res = collection.query(
+    query_texts=["Перечисли все доступные точки взаимодействия"],
+    n_results=10,
+)
+print(json.dumps(res, sort_keys=False, indent=4, ensure_ascii=False))

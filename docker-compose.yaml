@@ -13,97 +13,82 @@ services:
     networks:
       - internal
     attach: false
-  llm_rpc_client:
-    build: ./llm_rpc_client
-    command: uvicorn entrypoint:app --reload --host 0.0.0.0 --port 82
-    container_name: llm_rpc_client
-    environment:
-      - CHROMA=chromadb
-      - OLLAMA_HOST=ollama
-      - MODEL=deepseek-r1
-    ports:
-      - "8002:82"
-    restart: unless-stopped
-    networks:
-      - internal
-    depends_on:
-      - ollama
 # Vector storage and analytics
-  zipkin:
-    image: openzipkin/zipkin
-    container_name: zipkin
-    ports:
-      - "9411:9411"
-    networks:
-      - internal
-    restart: unless-stopped
-    attach: false
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.111.0
-    container_name: otel-collector
-    command: ["--config=/etc/otel-collector-config.yaml"]
-    volumes:
-      - ${PWD}/config/otel-collector-config.yaml:/etc/otel-collector-config.yaml
-    ports:
-      - "4317:4317"
-      - "4318:4318"
-    depends_on:
-      - zipkin
-    networks:
-      - internal
-    restart: unless-stopped
-    attach: false
-  prometheus:
-    image: prom/prometheus:latest
-    command: ["--config.file=/etc/prometheus/prometheus.yml"]
-    volumes:
-      - ${PWD}/config/prometheus.yml:/etc/prometheus/prometheus.yml
-    ports:
-      - "9090:9090"
-    networks:
-      - internal
-    restart: unless-stopped
-    attach: false
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    volumes:
-      - grafana:/var/lib/grafana
-    networks:
-      - internal
-    depends_on:
-      - prometheus
-    restart: unless-stopped
-    attach: false
-  chromadb:
-    image: chromadb/chroma:1.0.16.dev5
-    container_name: chromadb
-    environment:
-      - CHROMA_SERVER_HOST=0.0.0.0
-      - CHROMA_SERVER_HTTP_PORT=8070
-      - ANONYMIZED_TELEMETRY=False
-      - CHROMA_OTEL_EXPORTER_ENDPOINT=http://otel-collector:4317/
-      - CHROMA_OTEL_EXPORTER_headers={}
-    ports:
-      - "8070:8070"
-    volumes:
-      - ./config/chroma.yaml:/config.yaml
-      - type: bind
-        source: data/chroma
-        target: /data
-    depends_on:
-      - otel-collector
-      - zipkin
-      - rabbitmq
-      - grafana
-    networks:
-      - internal
-    restart: unless-stopped
+#  zipkin:
+#    image: openzipkin/zipkin
+#    container_name: zipkin
+#    ports:
+#      - "9411:9411"
+#    networks:
+#      - internal
+#    restart: unless-stopped
+#    attach: false
+#  otel-collector:
+#    image: otel/opentelemetry-collector-contrib:0.111.0
+#    container_name: otel-collector
+#    command: ["--config=/etc/otel-collector-config.yaml"]
+#    volumes:
+#      - ${PWD}/config/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+#    ports:
+#      - "4317:4317"
+#      - "4318:4318"
+#    depends_on:
+#      - zipkin
+#    networks:
+#      - internal
+#    restart: unless-stopped
+#    attach: false
+#  prometheus:
+#    image: prom/prometheus:latest
+#    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+#    volumes:
+#      - ${PWD}/config/prometheus.yml:/etc/prometheus/prometheus.yml
+#    ports:
+#      - "9090:9090"
+#    networks:
+#      - internal
+#    restart: unless-stopped
+#    attach: false
+#  grafana:
+#    image: grafana/grafana:latest
+#    container_name: grafana
+#    ports:
+#      - "3000:3000"
+#    environment:
+#      - GF_SECURITY_ADMIN_USER=admin
+#      - GF_SECURITY_ADMIN_PASSWORD=admin
+#    volumes:
+#      - grafana:/var/lib/grafana
+#    networks:
+#      - internal
+#    depends_on:
+#      - prometheus
+#    restart: unless-stopped
+#    attach: false
+#  chromadb:
+#    image: chromadb/chroma:1.0.16.dev5
+#    container_name: chromadb
+#    environment:
+#      - CHROMA_SERVER_HOST=0.0.0.0
+#      - CHROMA_SERVER_HTTP_PORT=8070
+#      - ANONYMIZED_TELEMETRY=False
+#      - CHROMA_OTEL_EXPORTER_ENDPOINT=http://otel-collector:4317/
+#      - CHROMA_OTEL_EXPORTER_headers={}
+#    ports:
+#      - "8070:8070"
+#    volumes:
+#      - ./config/chroma.yaml:/config.yaml
+#      - type: bind
+#        source: data/chroma
+#        target: /data
+#    depends_on:
+#      - otel-collector
+#      - zipkin
+#      - rabbitmq
+#      - grafana
+#    networks:
+#      - internal
+#    restart: unless-stopped
 
 networks:
   internal:

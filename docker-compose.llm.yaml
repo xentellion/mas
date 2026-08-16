@@ -19,6 +19,8 @@ services:
       - /usr/share/ollama/.ollama:/root/.ollama
     networks:
       - internal
+    profiles:
+      - local
     deploy:
       resources:
         reservations:
@@ -26,18 +28,44 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-  llm_rpc:
-    build: ./llm_rpc_server
-    command: python3 rpc_server.py
-    container_name: llm_rpc
+  # yandex:
+    
+  # llm_rpc:
+  #   build: ./llm_rpc_server
+  #   command: python3 rpc_server.py
+  #   container_name: llm_rpc
+  #   environment:
+  #     - CHROMA=chromadb
+  #     - OLLAMA_HOST=ollama
+  #     - MODEL=deepseek-r1
+  #     - PYTHONUNBUFFERED=1
+  #   restart: unless-stopped
+  #   networks:
+  #     - internal
+  #   depends_on:
+  #     # - ollama
+  #     - chromadb
+  llm_rpc_client:
+    build: ./llm_rpc_client
+    command: uvicorn entrypoint:app --reload --host 0.0.0.0 --port 82
+    container_name: llm_rpc_client
     environment:
       - CHROMA=chromadb
       - OLLAMA_HOST=ollama
       - MODEL=deepseek-r1
+    ports:
+      - "8002:82"
+    restart: unless-stopped
+    networks:
+      - internal
+    # depends_on:
+    #   - ollama
+  yc_rpc:
+    build: ./yc_rpc_server
+    command: python3 rpc_server.py
+    container_name: yc_rpc
+    environment:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
     networks:
       - internal
-    depends_on:
-      - ollama
-      - chromadb

@@ -103,7 +103,6 @@ class AreaRender(pg.PlotWidget):
     def create_area(self, path: str = None, rebuild: bool = False):
         if path is not None:
             return
-        # plt.connect("button_press_event", self.on_click)
         area = self.draw_walkable_area()
 
         if not self.flats:

@@ -6,6 +6,6 @@
         "gemma3:12b": 8002,
         "llama3.1": 8002,
         "mistral": 8002,
-        "gigachat": 8001
+        "yandexGPT": 8002
     }
 }
