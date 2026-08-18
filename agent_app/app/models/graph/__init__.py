@@ -7,6 +7,8 @@ from .interactable import (
     SecurityCheckpoint,
     BaggageReclaim,
     RegistrationDesk,
+    GateTransition,
+    GateAllowedSize,
 )
 from .node import Node
 from .wall import Wall
@@ -22,6 +24,8 @@ __all__ = [
     "SecurityCheckpoint",
     "BaggageReclaim",
     "RegistrationDesk",
+    "GateTransition",
+    "GateAllowedSize",
     "Node",
     "Wall",
 ]

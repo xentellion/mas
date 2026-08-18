@@ -1,8 +1,9 @@
 from .area import AreaRender
-from .spawner import Spawner, SpawnerObject
+from .spawner import Spawner, SpawnerPlane
 from .pathfinder import Pathfinder
 from .worker import SimWorker
-from .global_state import GlobalStates
+from .global_state import GlobalStates, StateChanged
+from .inter_manager import InteractablesManager
 
 __all__ = [
     "AreaRender",
@@ -11,4 +12,6 @@ __all__ = [
     "SpawnerObject",
     "SimWorker",
     "GlobalStates",
+    "StateChanged",
+    "InteractablesManager",
 ]

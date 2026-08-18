@@ -3,6 +3,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 
 from app.models.agents.simulation import Simulation
 from app.utils import load_prompts
+from app.core.inter_manager import InteractablesManager
 
 
 class StateChanged(QObject):
@@ -14,6 +15,8 @@ class GlobalStates(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
     simulation: Simulation = None
+
+    interactables: InteractablesManager = Field(default_factory=InteractablesManager)
 
     prompts: dict[str, str] = Field(default_factory=load_prompts)
     agents: dict[str, object] = {}

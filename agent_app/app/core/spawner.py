@@ -1,3 +1,4 @@
+import logging
 import heapq
 import random
 from functools import total_ordering
@@ -16,9 +17,23 @@ from app.utils.database import PlaneTable, Company, Country, with_orm_session
 
 
 @total_ordering
-class SpawnerObject(NamedTuple):
+class SpawnerPlane(NamedTuple):
     tick: int
-    plane: Plane
+    agent: Plane
+
+    def __eq__(self, other):
+        return self.tick == other.tick
+
+    def __lt__(self, other):
+        return self.tick < other.tick
+
+
+@total_ordering
+class SpawnerAgent(NamedTuple):
+    tick: int
+    agent: list[Agent]
+    plane_name: str
+    gate: str = None
 
     def __eq__(self, other):
         return self.tick == other.tick
@@ -29,7 +44,8 @@ class SpawnerObject(NamedTuple):
 
 class Spawner:
     def __init__(self):
-        self.agents: List[SpawnerObject] = []
+        self.planes: List[SpawnerPlane] = []
+        self.agents: List[SpawnerPlane] = []
         self.lock = QMutex()
 
     def generate(self):
@@ -37,11 +53,11 @@ class Spawner:
         if not data:
             return False
 
-        self.push(
+        self.push_plane(
             (
-                SpawnerObject(
+                SpawnerPlane(
                     tick=x.arrival_time,
-                    plane=x,
+                    agent=x,
                 )
                 for x in data
             )
@@ -51,6 +67,7 @@ class Spawner:
 
     def generate_agents(self) -> tuple(list):
         if GLOBAL_STATE.simulation is None:
+            logging.error("Generating empty sim")
             return []
         preset = GLOBAL_STATE.simulation
         random.seed(preset.random_seed)
@@ -141,21 +158,89 @@ class Spawner:
         result = {row.name: row for row in data}
         return result
 
-    def push(self, items: Union[SpawnerObject, Iterable]):
+    def push_plane(self, items: Union[SpawnerPlane, Iterable]):
         with QMutexLocker(self.lock):
-            if isinstance(items, SpawnerObject):
-                heapq.heappush(self.agents, items)
+            if isinstance(items, SpawnerPlane):
+                heapq.heappush(self.planes, items)
                 return
 
             seq = list(items)
             if not seq:
                 return
+            self.planes.extend(seq)
+            heapq.heapify(self.planes)
+
+    def pull_planes(self, tick) -> List[SpawnerPlane]:
+        queue = []
+        with QMutexLocker(self.lock):
+            while self.planes and self.planes[0].tick <= tick:
+                queue.append(heapq.heappop(self.planes))
+        return queue
+
+    def push_agents(self, current_tick: int, plane: Plane, gate: str):
+        with QMutexLocker(self.lock):
+            items = plane.passengers
+            # @TODO - reconsider shuffle when in groups. Use tuples?
+            random.shuffle(items)
+
+            min_time = 3
+            max_time = 50
+            vals = self.skewed_bell_range(
+                min_time,
+                max_time,
+                n=len(items),
+                skew=4.0,
+            )
+            vals = np.asarray(vals, dtype=int) + current_tick
+
+            data = []
+            for i in range(len(items)):
+                data.append(
+                    SpawnerAgent(
+                        tick=vals[i],
+                        agent=items[i],
+                        plane_name=plane.name,
+                        gate=gate,
+                    )
+                )
+
+            if isinstance(data, SpawnerPlane):
+                heapq.heappush(self.agents, data)
+                return
+            seq = list(data)
+            if not seq:
+                return
             self.agents.extend(seq)
             heapq.heapify(self.agents)
 
-    def pull(self, tick) -> List[SpawnerObject]:
+    def pull_agents(self, tick) -> List[SpawnerPlane]:
         queue = []
         with QMutexLocker(self.lock):
             while self.agents and self.agents[0].tick <= tick:
                 queue.append(heapq.heappop(self.agents))
         return queue
+
+    def skewed_bell_range(self, low, high, n=1000, skew=4.0, rng=None):
+        if rng is None:
+            rng = np.random.default_rng()
+
+        if low > high:
+            low, high = high, low
+
+        if n <= 0:
+            return np.array([], dtype=int)
+
+        # Center the distribution inside [low, high]
+        center = (low + high) / 2.0
+        spread = max((high - low) / 6.0, 1.0)
+
+        # Skew-normal sample
+        delta = skew / np.sqrt(1 + skew**2)
+        u0 = rng.normal(size=n)
+        u1 = rng.normal(size=n)
+        x = center + spread * (delta * np.abs(u0) + np.sqrt(1 - delta**2) * u1)
+
+        # Convert to integers and keep them inside the requested bounds
+        x = np.rint(x).astype(int)
+        x = np.clip(x, low, high)
+        return x

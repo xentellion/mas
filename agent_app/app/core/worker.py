@@ -4,6 +4,7 @@ import uuid
 from copy import deepcopy
 from typing import Any, Callable
 import queue
+import random
 
 from PyQt6.QtCore import QRunnable, pyqtSlot
 
@@ -14,6 +15,16 @@ from app.models.agents import Agent, agent_task
 from app.models.graph import interactable
 from app.models.qt import WorkerSignals
 from app.utils import State
+
+# from app.models.graph import (
+#     Interactable,
+#     Entrance,
+#     Exit,
+#     Gate,
+#     SecurityCheckpoint,
+#     BaggageReclaim,
+#     RegistrationDesk,
+# )
 
 
 class SimWorker(QRunnable):
@@ -71,6 +82,15 @@ class SimWorker(QRunnable):
         agents: dict[str, Agent] = deepcopy(GLOBAL_STATE.agents)
 
         sim_event_loop = True
+
+        entrances = list(
+            GLOBAL_STATE.interactables.get_interactables_of_type(
+                interactable.Entrance
+            ).keys()
+        )
+
+        random.seed(GLOBAL_STATE.simulation.random_seed)
+
         while sim_event_loop:
             if self.is_paused:
                 time.sleep(0.1)
@@ -80,38 +100,36 @@ class SimWorker(QRunnable):
                 continue
 
             self._process_external_requests()
+            prepared_planes = self.spawner.pull_planes(tick_count)
+            prepared_agents = self.spawner.pull_agents(tick_count)
 
-            prepared_planes = self.spawner.pull(tick_count)
             for plane in prepared_planes:
-                if plane.plane.is_arriving:
-                    self.ren.interactables["gate_2"].add_plane(plane.plane)
-                else:
-                    for p in plane.plane.passengers:
-                        self.ren.interactables["entrance"].add_new_agent(
-                            p, self.ren.graph, plane.plane.name, ""
-                        )
-            # prepared_agents = self.spawner.pull(tick_count)
-            # for agt in prepared_agents:
-            #     if isinstance(agt.agent, PreparedPlane):
-            #         self.ren.interactables[agt.agent.plane.gate].add_plane(
-            #             agt.agent.plane
-            #         )
-            #     else:
-            #         self.ren.interactables[agt.dest].add_new_agent(
-            #             agt.agent.agent, self.ren.graph, agt.agent.flight, ""
-            #         )
-
-            for point in self.ren.interactables.values():
-                if isinstance(point, (interactable.Entrance, interactable.Gate)):
-                    new_ag = point.spawn_agent(
-                        self.ren.graph, self.ren.interactables, self.step
+                if plane.agent.is_arriving:
+                    GLOBAL_STATE.interactables.occupy_free_gate(
+                        plane.agent, interactable.GateTransition.InOnly
                     )
+                else:
+                    this_plane = deepcopy(plane.agent)
+                    this_plane.passengers = []
+                    gate = GLOBAL_STATE.interactables.occupy_free_gate(
+                        this_plane, interactable.GateTransition.OutOnly
+                    )
+                    self.spawner.push_agents(tick_count, plane.agent, gate)
+
+            for agt in prepared_agents:
+                GLOBAL_STATE.interactables[random.choice(entrances)].add_new_agent(
+                    agt.agent, self.ren.graph, agt.plane_name, agt.gate
+                )
+
+            for point in GLOBAL_STATE.interactables:
+                if isinstance(point, (interactable.Entrance, interactable.Gate)):
+                    new_ag = point.spawn_agent(self.ren.graph, self.step)
                     if new_ag is not None:
                         self.signals.new_agent.emit(str(uuid.uuid4()), new_ag)
 
             for _id, agt in agents.items():
                 try:
-                    new_pos = agt.tick(self.ren.graph, self.ren.interactables)
+                    new_pos = agt.tick(self.ren.graph)
                 except AttributeError as e:
                     logging.error(f"Can't process agent tick: {e}")
                     self.signals.agent_error.emit(str(e))
@@ -121,11 +139,10 @@ class SimWorker(QRunnable):
                     agt.change_task(self.ren.graph)
 
                     if agt.current_task is None and agt.state is State.WALKING:
-                        if agt.position in self.ren.interactables_mapping:
-                            inter = self.ren.interactables[
-                                self.ren.interactables_mapping[agt.position]
-                            ]
+                        inter = GLOBAL_STATE.interactables[agt.position]
+                        if inter is not None:
                             new_task = inter.get_task(agt)
+                            logging.debug(f"New task for agent {_id} - {new_task}")
                             agt.add_task(new_task)
                 else:
                     if isinstance(agt.current_task, agent_task.WalkingTask):
@@ -134,10 +151,14 @@ class SimWorker(QRunnable):
                 if agt.state == State.COMPLETE:
                     self.signals.agent_removed.emit(_id)
 
-            # Throttle to let main thread catch up
+            # Throttle to let the main thread catch up
             time.sleep(0.01)
 
             agents = deepcopy(GLOBAL_STATE.agents)
+
+            # =====================================
+            # print(GLOBAL_STATE.interactables.get_interactables_of_type(Gate))
+            # =====================================
 
             if not agents and not prepared_planes:
                 sim_event_loop = False

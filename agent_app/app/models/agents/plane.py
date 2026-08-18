@@ -7,10 +7,8 @@ class Plane:
         departure_time: int,
         is_arriving: bool,
         passengers: list = None,
-        gate: str = None,
     ):
         self.__name = name
-        self.__gate = gate
         self.__volume = volume
         self.__is_arriving = is_arriving
         self.arrival_time = arrival_time
@@ -20,10 +18,6 @@ class Plane:
     @property
     def name(self):
         return self.__name
-
-    @property
-    def gate(self):
-        return self.__gate
 
     @property
     def volume(self):

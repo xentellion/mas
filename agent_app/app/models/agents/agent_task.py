@@ -4,6 +4,7 @@ import logging
 import random
 from abc import ABC, abstractmethod
 
+from app.core.global_state import GLOBAL_STATE
 from app.models.graph import Graph
 from app.utils import State
 
@@ -34,11 +35,12 @@ class WalkingTask(AgentTask):
         interactables (dict[str, Interactable]): list of possible interactive points
     """
 
-    def __init__(self, dest: str, interactables, status: str = None):
+    def __init__(self, dest: str, status: str = None):
         super().__init__()
         try:
+            # @TODO - proper decision making by LLM
             self.dest = (
-                random.choice(interactables[dest].outlet_point)
+                random.choice(GLOBAL_STATE.interactables[dest].outlet_point)
                 if dest is not None
                 else None
             )

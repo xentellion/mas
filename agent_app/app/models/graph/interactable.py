@@ -1,5 +1,6 @@
 import logging
 import random
+from enum import IntEnum
 
 from shapely import Point, Polygon
 from shapely.ops import unary_union
@@ -83,19 +84,22 @@ class Interactable:
 class Entrance(Interactable):
     _storage = []
 
-    def add_new_agent(self, agent, graph, ticket_number=None, ticket_gate=None):
+    def add_new_agent(self, agent, graph, plane_number: str, ticket_gate: str):
         node = random.choice(self.outlet_point)
         agent.move(graph.get_node(node).point.xy, node)
-        if ticket_number is not None:
-            agent.status.append(
-                # f"У тебя есть билет на борт {ticket_number}. Он будет пристыкован к воротам {ticket_gate}"
-                f"You have a ticket for a plane {ticket_number}. It will be at the gate {ticket_gate}"
-            )
-        else:
-            agent.status.append("You have no ticket")
+        agent.status.append(
+            f"You have a ticket for a plane {plane_number}. It will be at the gate {ticket_gate}"
+        )
+        # if ticket_number is not None:
+        #     agent.status.append(
+        #         # f"У тебя есть билет на борт {ticket_number}. Он будет пристыкован к воротам {ticket_gate}"
+        #         f"You have a ticket for a plane {ticket_number}. It will be at the gate {ticket_gate}"
+        #     )
+        # else:
+        #     agent.status.append("You have no ticket")
         self._storage.append(agent)
 
-    def spawn_agent(self, graph, interactables, step: int, starting_status=None):
+    def spawn_agent(self, graph, step: int, starting_status=None):
         if self._storage:
             agent = self._storage.pop()
             agent.position = random.choice(self.outlet_point)
@@ -112,11 +116,36 @@ class Exit(Interactable):
         self._task = agent_task.CompletionTask()
 
 
+class GateTransition(IntEnum):
+    Any = 0
+    InOnly = 1
+    OutOnly = 2
+
+
+class GateAllowedSize(IntEnum):
+    OnlySmall = 1
+    Any = 2
+    OnlyBig = 3
+
+
 class Gate(Interactable):
-    def __init__(self, name, inlet_point, outlet_point, area, max_occupy, scale, step):
+    def __init__(
+        self,
+        name,
+        inlet_point,
+        outlet_point,
+        area,
+        max_occupy,
+        scale,
+        step,
+        gate_transition: GateTransition = GateTransition.Any,
+        gate_size: GateAllowedSize = GateAllowedSize.Any,
+    ):
         super().__init__(name, inlet_point, outlet_point, area, max_occupy, scale, step)
         # self.__releasing_passengers = None
         self.plane = None
+        self.gate_transition = GateTransition(gate_transition)
+        self.gate_size = GateAllowedSize(gate_size)
         self._task = agent_task.CompletionTask()
 
     def get_task(self, agent):
@@ -138,7 +167,7 @@ class Gate(Interactable):
     def depart(self):
         self.plane = None
 
-    def spawn_agent(self, graph, interactables, step: int, starting_status=None):
+    def spawn_agent(self, graph, step: int, starting_status=None):
         if not self.plane:
             return None
         if not self.plane.is_arriving:
@@ -173,5 +202,7 @@ class BaggageReclaim(Interactable):
 class RegistrationDesk(Interactable):
     def __init__(self, name, inlet_point, outlet_point, area, max_occupy, scale, step):
         super().__init__(name, inlet_point, outlet_point, area, max_occupy, scale, step)
-        self.status = "You passed the registration"
+        self.status = (
+            "You passed the check-in and can board your plane whenever possible."
+        )
         self._task = agent_task.InteractingTask(10, self.status)

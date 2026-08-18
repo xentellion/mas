@@ -8,9 +8,22 @@ from app.utils import delete_oldest_logs
 from app import MainWindow
 from app.core.global_state import GLOBAL_STATE
 
+# Some shenanigans to keep debug menu from screaming at me because tick in not yet declared
+_orig_log_record_factory = logging.getLogRecordFactory()
+
+
+def _log_record_factory(*args, **kwargs):
+    record = _orig_log_record_factory(*args, **kwargs)
+    if not hasattr(record, "tick"):
+        record.tick = getattr(GLOBAL_STATE, "tick", "N/A")
+    return record
+
+
+logging.setLogRecordFactory(_log_record_factory)
+
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     filename=f"logs/{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log",
     filemode="a+",
     format="%(asctime)s:tick %(tick)s:%(levelname)s:%(message)s",

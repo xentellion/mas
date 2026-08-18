@@ -56,7 +56,7 @@ class Agent:
         """Current agent task"""
         return self.__current_task
 
-    def tick(self, graph: Graph, interactables: dict):
+    def tick(self, graph: Graph):
         """Updates agent tasks status
 
         Args:
@@ -68,7 +68,7 @@ class Agent:
         """
         if self.__current_task is None:
             if not self.tasks:
-                self.request_task(graph, interactables)
+                self.request_task(graph)
             return None
         status = self.__current_task.tick()
         if status is None:
@@ -78,11 +78,7 @@ class Agent:
             return None
         return status
 
-    def request_task(
-        self,
-        graph,
-        interactables,
-    ):
+    def request_task(self, graph):
         """Send request to LLM on next point of interaction
 
         Args:
@@ -112,7 +108,7 @@ class Agent:
             )
         # Agent only requests walking tasks as other tasks are just
         # sitting around with different flavors
-        task = agent_task.WalkingTask(path.lower().strip(), interactables)
+        task = agent_task.WalkingTask(path.lower().strip())
         task.setup(self.position, graph)
         self.add_task(task)
 

@@ -16,6 +16,7 @@ from .pathfinder import Pathfinder
 from app.models.graph import Graph, Wall
 from app.utils import execution_timer
 from app.core.constants import GRAPH_PATH
+from app.core.global_state import GLOBAL_STATE
 
 
 class AreaRender(pg.PlotWidget):
@@ -114,8 +115,8 @@ class AreaRender(pg.PlotWidget):
         else:
             self.graph = self._load_graph(GRAPH_PATH)
 
-        self.interactables_mapping, self.interactables = (
-            Pathfinder.create_interactables(self.flats, self.graph)
+        GLOBAL_STATE.interactables.set_interactables(
+            *Pathfinder.create_interactables(self.flats, self.graph)
         )
         self.graph.rough_graph = Pathfinder.construct_rough_graph(
             self.graph, self.extra_connections
@@ -164,7 +165,7 @@ class AreaRender(pg.PlotWidget):
         return MultiPolygon(total_area)
 
     def draw_intercatables(self):
-        for room in self.interactables.values():
+        for room in GLOBAL_STATE.interactables:
             self._draw_wall(room.area, color="red")
 
     @execution_timer("Draw coordinate grid")

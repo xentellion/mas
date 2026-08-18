@@ -393,7 +393,9 @@
                     ],
                     "outlet_point": null,
                     "area": null,
-                    "max_occupy": 1
+                    "max_occupy": 1,
+                    "gate_transition": 2,
+                    "gate_size": 2
                 }
             ]
         },
@@ -478,7 +480,9 @@
                     ],
                     "outlet_point": null,
                     "area": null,
-                    "max_occupy": 1
+                    "max_occupy": 1,
+                    "gate_transition": 1,
+                    "gate_size": 2
                 }
             ]
         },

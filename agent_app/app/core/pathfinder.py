@@ -230,10 +230,7 @@ class Pathfinder:
                     new_points.append(batch)
                 inter.reposition_points(*new_points)
                 interactables[inter.name] = inter
-
-        # for v in interactables.values():
-        #     print(f"{v.name} - {graph.get_node(v.outlet_point[0]).point.xy}")
-        return mapping, interactables
+        return interactables, mapping
 
     @execution_timer("Building rough graph")
     @staticmethod
