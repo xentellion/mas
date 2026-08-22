@@ -65,7 +65,7 @@ class Spawner:
 
         return True
 
-    def generate_agents(self) -> tuple(list):
+    def generate_agents(self) -> tuple(tuple(list), list):
         if GLOBAL_STATE.simulation is None:
             logging.error("Generating empty sim")
             return []
@@ -82,15 +82,20 @@ class Spawner:
             for i in range(comp.planes_count):
                 plane_volume = planes_data[random.choice(comp.allowed_models)].seats
                 is_arriving = random.random() <= (comp.arriving_part / 100)
+                passengers, names = self.__generate_passengers(
+                    comp, plane_volume, is_arriving
+                )
+
                 plane = Plane(
                     name=self.__generate_flight_number(company_data[c_name].iata),
                     volume=plane_volume,
                     arrival_time=0,
                     departure_time=1000,
                     is_arriving=is_arriving,
-                    passengers=self.__generate_passengers(
-                        comp, plane_volume, is_arriving
-                    ),
+                    # In case of possible overbooking
+                    expected_count=min(len(passengers), plane_volume),
+                    expected_passengers=names,
+                    passengers=passengers,
                 )
                 prepared_planes.append(plane)
 
@@ -132,17 +137,21 @@ class Spawner:
             )
         )
 
+        name_list = []
+
         for i in presets:
             # before I knbow how to handle children i'll just remove them
             if i[0] < 1:
                 continue
+            name = str(uuid.uuid4())
             new_ag = Agent(
-                name=str(uuid.uuid4()),
+                name=name,
                 prompt=i,
             )
+            name_list.append(name)
             result.append(new_ag)
 
-        return result
+        return result, name_list
 
     @with_orm_session
     def __get_planes(self, session=None):

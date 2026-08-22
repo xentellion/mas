@@ -9,7 +9,7 @@ __all__ = [
     "AreaRender",
     "Pathfinder",
     "Spawner",
-    "SpawnerObject",
+    "SpawnerPlane",
     "SimWorker",
     "GlobalStates",
     "StateChanged",

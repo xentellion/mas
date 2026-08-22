@@ -92,7 +92,7 @@ class Agent:
         try:
             prompt = self.prompt.format(". ".join(self.status))
             logging.info("%s -> %s", self.name, prompt)
-            path = self.get_path(prompt=prompt)
+            path = self.request_path(prompt=prompt)
         except requests.HTTPError as e:
             logging.error(e)
             path = None
@@ -101,7 +101,7 @@ class Agent:
             return
         if LOG_PROMPTS is True:
             logging.info(
-                "%s -> [%s] in %s",
+                "%s <- [%s] in %s",
                 self.name,
                 path,
                 datetime.datetime.now() - tm,
@@ -109,10 +109,11 @@ class Agent:
         # Agent only requests walking tasks as other tasks are just
         # sitting around with different flavors
         task = agent_task.WalkingTask(path.lower().strip())
+        logging.debug(f"Agent {self.name} requesting path.")
         task.setup(self.position, graph)
         self.add_task(task)
 
-    def get_path(self, prompt):
+    def request_path(self, prompt):
         result = asyncio.run(self.send_request_async(prompt))
         if not result:
             return None

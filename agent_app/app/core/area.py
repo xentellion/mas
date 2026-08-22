@@ -32,7 +32,7 @@ class AreaRender(pg.PlotWidget):
 
     def create_renderer(self, step, draw_grid):
         self.step = step
-        self.draw_grid = False
+        self.draw_grid = draw_grid
         self.graph = None
         self.extra_connections = None
         self.flats = self._load_walls()

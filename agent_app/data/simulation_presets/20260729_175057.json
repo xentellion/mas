@@ -15,8 +15,8 @@
                 "business",
                 "education"
             ],
-            "planes_count": 1,
-            "average_time_between": 1,
+            "planes_count": 2,
+            "average_time_between": 2,
             "allowed_models": [
                 "TestTiny"
             ],
@@ -33,8 +33,8 @@
                 "business",
                 "tourism"
             ],
-            "planes_count": 1,
-            "average_time_between": 1,
+            "planes_count": 2,
+            "average_time_between": 2,
             "allowed_models": [
                 "TestTiny"
             ],

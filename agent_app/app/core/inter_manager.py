@@ -1,7 +1,9 @@
 import logging
 from PyQt6.QtCore import QMutex
 
-import app.models.graph.interactable as interactable
+from app.utils import GateTransition
+
+# from app.models.graph.interactable import Gate
 
 
 class InteractablesManager:
@@ -65,35 +67,48 @@ class InteractablesManager:
     def get_interactables_of_type(self, interactable_type):
         if not self.__interactables or not self.__mapped_interactables:
             return {}
-        result = dict(
-            filter(
-                lambda v: isinstance(v[1], interactable_type),
-                self.__interactables.items(),
-            )
-        )
+        # This is an EXTREMLY shit solution but I am not dealing with circular imports anymore
+        if isinstance(interactable_type, str):
+            result = {
+                k: v
+                for k, v in self.__interactables.items()
+                if v.__class__.__name__ == interactable_type
+            }
+        else:
+            result = {
+                k: v
+                for k, v in self.__interactables.items()
+                if isinstance(v, interactable_type)
+            }
         return result
 
     def occupy_free_gate(
         self,
         plane,
-        allowed_type: interactable.GateTransition = interactable.GateTransition.Any,
+        allowed_type: GateTransition = GateTransition.Any,
     ):
         possible_gates = {
             k: v
-            for k, v in self.get_interactables_of_type(interactable.Gate).items()
+            for k, v in self.get_interactables_of_type("Gate").items()
             if v.plane is None
         }
         if not possible_gates:
+            logging.info(f"No gates found for '{plane.name}'.")
             return None
-        gate = next(
-            filter(
-                lambda x: x.gate_transition
-                in (
-                    interactable.GateTransition.Any,
-                    allowed_type,
-                ),
-                possible_gates.values(),
-            )
-        ).name
+        try:
+            gate = next(
+                filter(
+                    lambda x: x.gate_transition
+                    in (
+                        GateTransition.Any,
+                        allowed_type,
+                    ),
+                    possible_gates.values(),
+                )
+            ).name
+        except StopIteration:
+            logging.info(f"No filtered gates found for '{plane.name}'.")
+            return None
+        logging.info(f"Gate '{gate}' is taken by plane '{plane.name}'.")
         self.__interactables[gate].add_plane(plane)
         return gate

@@ -56,6 +56,7 @@ class Pathfinder:
                 target_node,
                 heuristic,
             )
+
             # return rough_path
             rough_path = [
                 (rough_path[idx], rough_path[idx + 1])
@@ -63,15 +64,21 @@ class Pathfinder:
             ]
 
             path = [point_a]
+            if not rough_path:
+                return path
+
             for idx, p in enumerate(rough_path[::-1]):
                 e_n = graph.get_node(p[1])
-                path += Pathfinder.search_path(
+                new_part = Pathfinder.search_path(
                     graph,
                     p[0],
                     p[1],
                     e_n,
                     heuristic,
                 )
+                if not new_part:
+                    break
+                path += new_part
         else:
             path = Pathfinder.search_path(graph, point_a, point_b, target_node)[::-1]
         logging.debug("Found path in %s steps", len(path))

@@ -23,7 +23,7 @@ logging.setLogRecordFactory(_log_record_factory)
 
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     filename=f"logs/{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log",
     filemode="a+",
     format="%(asctime)s:tick %(tick)s:%(levelname)s:%(message)s",

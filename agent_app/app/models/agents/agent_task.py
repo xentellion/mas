@@ -12,9 +12,9 @@ from app.utils import State
 class AgentTask(ABC):
     """Generic task"""
 
-    def __init__(self, status: str = None):
+    def __init__(self, status: str = None, priority: bool = False):
         self.state: State = None
-        self.priority: bool = False
+        self.priority: bool = priority
         self.status: str = status
 
     @abstractmethod
@@ -35,8 +35,8 @@ class WalkingTask(AgentTask):
         interactables (dict[str, Interactable]): list of possible interactive points
     """
 
-    def __init__(self, dest: str, status: str = None):
-        super().__init__()
+    def __init__(self, dest: str, status: str = None, priority: bool = False):
+        super().__init__(status, priority)
         try:
             # @TODO - proper decision making by LLM
             self.dest = (
@@ -73,6 +73,21 @@ class WalkingTask(AgentTask):
         return self.path.pop(0)
 
 
+class BoardingTask(AgentTask):
+    """Task to keep an agent IDLE ob board of a plane until something happens.
+
+    Args:
+        AgentTask (_type_): _description_
+    """
+
+    def __init__(self, status: str = None, priority: bool = False):
+        super().__init__(status, priority)
+        self.state = State.BOARDING
+
+    def tick(self):
+        return False
+
+
 class InteractingTask(AgentTask):
     """Task to occupy the point for set amount of time
 
@@ -80,8 +95,8 @@ class InteractingTask(AgentTask):
         time (int): time in tics
     """
 
-    def __init__(self, time: int, status: str = None):
-        super().__init__()
+    def __init__(self, time: int, status: str = None, priority: bool = False):
+        super().__init__(status, priority)
         self.__max_time = time
         self.time = time
         self.state = State.PERFORMING
@@ -98,8 +113,8 @@ class InteractingTask(AgentTask):
 class CompletionTask(AgentTask):
     """Final task, given to agent on reaching exit or on plane departing"""
 
-    def __init__(self, status: str = None):
-        super().__init__(status)
+    def __init__(self, status: str = None, priority: bool = False):
+        super().__init__(status, priority)
         self.state = State.COMPLETE
 
     def tick(self):

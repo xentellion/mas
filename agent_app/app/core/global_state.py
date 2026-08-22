@@ -1,9 +1,9 @@
 from pydantic import BaseModel, ConfigDict, Field
 from PyQt6.QtCore import QObject, pyqtSignal
 
-from app.models.agents.simulation import Simulation
 from app.utils import load_prompts
 from app.core.inter_manager import InteractablesManager
+from app.models.agents.simulation import Simulation
 
 
 class StateChanged(QObject):

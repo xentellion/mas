@@ -196,12 +196,15 @@ class MainWindow(QMainWindow):
     def __agent_updated(self, _id: str, agent: Agent):
         GLOBAL_STATE.agents[_id] = agent
         if agent.current_task is None:
-            logging.warning(f"No task present for agent {_id}")
+            logging.debug(f"No task present for agent {_id}")
             return
-        plate = self.agent_plates[_id]
-        plate.setState(agent.state)
-        if isinstance(agent.current_task, agent_task.WalkingTask):
-            plate.setTarget(agent.current_task.dest_name)
+        plate = self.agent_plates.get(_id, None)
+        if plate is not None:
+            plate.setState(agent.state)
+            if isinstance(agent.current_task, agent_task.WalkingTask):
+                plate.setTarget(agent.current_task.dest_name)
+        else:
+            logging.error(f"Can't find plate of agent {_id}")
 
     @pyqtSlot(str)
     def __agent_removed(self, _id: str):

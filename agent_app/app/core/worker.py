@@ -1,6 +1,5 @@
 import logging
 import time
-import uuid
 from copy import deepcopy
 from typing import Any, Callable
 import queue
@@ -11,20 +10,10 @@ from PyQt6.QtCore import QRunnable, pyqtSlot
 from app.core import AreaRender, Spawner
 from app.core.constants import TPS
 from app.core.global_state import GLOBAL_STATE
-from app.models.agents import Agent, agent_task
+from app.models.agents import Agent, Plane, agent_task
 from app.models.graph import interactable
 from app.models.qt import WorkerSignals
 from app.utils import State
-
-# from app.models.graph import (
-#     Interactable,
-#     Entrance,
-#     Exit,
-#     Gate,
-#     SecurityCheckpoint,
-#     BaggageReclaim,
-#     RegistrationDesk,
-# )
 
 
 class SimWorker(QRunnable):
@@ -105,15 +94,34 @@ class SimWorker(QRunnable):
 
             for plane in prepared_planes:
                 if plane.agent.is_arriving:
-                    GLOBAL_STATE.interactables.occupy_free_gate(
+                    gate = GLOBAL_STATE.interactables.occupy_free_gate(
                         plane.agent, interactable.GateTransition.InOnly
                     )
+                    if gate is None:
+                        readd_plane = plane._replace(tick=tick_count + TPS)
+                        logging.info(
+                            f"Plane '{plane.agent.name}' will attemt to dock on tick {tick_count + TPS}"
+                        )
+                        self.spawner.push_plane([readd_plane])
                 else:
                     this_plane = deepcopy(plane.agent)
                     this_plane.passengers = []
                     gate = GLOBAL_STATE.interactables.occupy_free_gate(
                         this_plane, interactable.GateTransition.OutOnly
                     )
+                    if gate is None:
+                        readd_plane = plane._replace(
+                            tick=tick_count + TPS,
+                            agent=this_plane,
+                        )
+                        self.spawner.push_plane([readd_plane])
+                    else:
+                        for p in this_plane.expected_passengers:
+                            if p in GLOBAL_STATE.agents:
+                                agents[p].status.append(
+                                    f"Your plane is docked at the gate {gate}."
+                                )
+                                agents[p].status.append("You can board your plane.")
                     self.spawner.push_agents(tick_count, plane.agent, gate)
 
             for agt in prepared_agents:
@@ -122,10 +130,36 @@ class SimWorker(QRunnable):
                 )
 
             for point in GLOBAL_STATE.interactables:
-                if isinstance(point, (interactable.Entrance, interactable.Gate)):
+                if isinstance(point, interactable.Entrance):
                     new_ag = point.spawn_agent(self.ren.graph, self.step)
                     if new_ag is not None:
-                        self.signals.new_agent.emit(str(uuid.uuid4()), new_ag)
+                        self.signals.new_agent.emit(str(new_ag.name), new_ag)
+                elif isinstance(point, interactable.Gate):
+                    new_ag = point.spawn_agent(self.ren.graph, self.step)
+                    if new_ag is not None:
+                        self.signals.new_agent.emit(new_ag.name, new_ag)
+                    if point.plane is not None:
+                        if point.plane.ready_to_depart:
+                            result = point.depart(self.ren.graph, tick_count)
+                            if not result:
+                                pass
+                            elif isinstance(result, list):
+                                for ag in result:
+                                    try:
+                                        agents[ag].clear_tasks()
+                                        agents[ag].add_task(
+                                            agent_task.CompletionTask("Plane departs")
+                                        )
+                                        agents[ag].change_task(self.ren.graph)
+                                    except KeyError:
+                                        logging.warning(
+                                            "Trying to remove nonexistent agent"
+                                        )
+                            elif isinstance(result, Plane):
+                                # Rejoin plane in the big list
+                                pass
+                            else:
+                                pass
 
             for _id, agt in agents.items():
                 try:
@@ -144,9 +178,13 @@ class SimWorker(QRunnable):
                             new_task = inter.get_task(agt)
                             logging.debug(f"New task for agent {_id} - {new_task}")
                             agt.add_task(new_task)
-                else:
+                elif new_pos is not False:
                     if isinstance(agt.current_task, agent_task.WalkingTask):
-                        agt.move(self.ren.graph.get_node(new_pos).point.xy, new_pos)
+                        try:
+                            agt.move(self.ren.graph.get_node(new_pos).point.xy, new_pos)
+                        except AttributeError as e:
+                            # Prevents an error on stopping sim while requesting
+                            logging.error(f"Can't move agent {agt.name}: {e}")
                 self.signals.agent_updated.emit(_id, agt)
                 if agt.state == State.COMPLETE:
                     self.signals.agent_removed.emit(_id)
@@ -155,12 +193,14 @@ class SimWorker(QRunnable):
             time.sleep(0.01)
 
             agents = deepcopy(GLOBAL_STATE.agents)
-
-            # =====================================
-            # print(GLOBAL_STATE.interactables.get_interactables_of_type(Gate))
-            # =====================================
-
-            if not agents and not prepared_planes:
+            # Probably can be done easier but i can't be assed to recheck
+            if (
+                not agents
+                and not prepared_planes
+                and not prepared_agents
+                and not self.spawner.planes
+                and not self.spawner.agents
+            ):
                 sim_event_loop = False
 
             # Crutch to prevent re-rendering of agents if the simulation was stopped while waiting for llm
@@ -168,13 +208,17 @@ class SimWorker(QRunnable):
                 continue
 
             spots = [
-                {"pos": tuple(self.ren.graph.get_node(a.position).xy)}
+                {
+                    "pos": tuple(self.ren.graph.get_node(a.position).xy),
+                    "data": {"id": a.name},
+                }
                 for a in agents.values()
+                if a.state is not State.BOARDING
             ]
             self.signals.agent_positions.emit(spots)
 
             tick_count += 1
-            time_delta = TPS - (time.time() % TPS)
+            time_delta = 1 / TPS - (time.time() % (1 / TPS))
             if time_delta > 0:
                 time.sleep(time_delta)
             self.signals.sim_tick.emit(tick_count)

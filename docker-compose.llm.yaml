@@ -1,15 +1,4 @@
 services:
-  # gigachat:
-  #   build: ./gigachat-service
-  #   command: uvicorn app.main:app --reload --host 0.0.0.0 --port 81
-  #   container_name: gigachat
-  #   environment:
-  #     - CHROMA=chromadb
-  #   ports:
-  #     - "8001:81"
-  #   restart: unless-stopped
-  #   networks:
-  #     - internal 
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
@@ -28,8 +17,6 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-  # yandex:
-    
   # llm_rpc:
   #   build: ./llm_rpc_server
   #   command: python3 rpc_server.py

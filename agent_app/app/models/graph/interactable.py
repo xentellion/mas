@@ -1,11 +1,12 @@
 import logging
 import random
-from enum import IntEnum
+from copy import deepcopy
 
 from shapely import Point, Polygon
 from shapely.ops import unary_union
 
 from app.models.agents import agent_task
+from app.utils import GateAllowedSize, GateTransition
 
 
 class Interactable:
@@ -116,18 +117,6 @@ class Exit(Interactable):
         self._task = agent_task.CompletionTask()
 
 
-class GateTransition(IntEnum):
-    Any = 0
-    InOnly = 1
-    OutOnly = 2
-
-
-class GateAllowedSize(IntEnum):
-    OnlySmall = 1
-    Any = 2
-    OnlyBig = 3
-
-
 class Gate(Interactable):
     def __init__(
         self,
@@ -146,26 +135,44 @@ class Gate(Interactable):
         self.plane = None
         self.gate_transition = GateTransition(gate_transition)
         self.gate_size = GateAllowedSize(gate_size)
-        self._task = agent_task.CompletionTask()
+        self._task = agent_task.BoardingTask()
 
     def get_task(self, agent):
         if not self.plane:
             return None
         # TODO add ticket check
-        if self.plane.is_arriving is False:
-            agent.status
-            self.plane.passengers.append(agent)
-            return self._task
-        return None
+        if self.plane.is_arriving:
+            return None
+        if agent.name not in self.plane.expected_passengers:
+            logging.warning(f"Passenger {agent.name} tried to board wrong plane")
+            return None
+        if self.plane.ready_to_depart:
+            logging.info(
+                f"Plane {self.plane.name} "
+                + f"{"can't take more passengers" if not self.plane.is_arriving else "has no more passengers."}"
+            )
+            return None
+        self.plane.add_passenger(agent)
+        return self._task
 
     def add_plane(self, plane):
         if self.plane is not None:
             logging.warning("Trying to dock a plane to an occupied gate")
-            return
+            return False
         self.plane = plane
+        return True
 
-    def depart(self):
-        self.plane = None
+    def depart(self, graph, current_tick):
+        if self.plane.passengers:
+            data = deepcopy(self.plane.passengers)
+            self.plane.passengers = []
+            return data
+        elif not self.plane.will_turnaround:
+            self.plane = None
+            return None
+        else:
+            # @TODO - use on the other side to add again
+            return deepcopy(self.plane)
 
     def spawn_agent(self, graph, step: int, starting_status=None):
         if not self.plane:
@@ -173,11 +180,10 @@ class Gate(Interactable):
         if not self.plane.is_arriving:
             return None
         if not self.plane.passengers:
-            # logging.warning("Plane %s is empty", self.plane.name)
             return None
         starting_status = f"You have just got off the plane {self.plane.name}"
 
-        agent = self.plane.passengers.pop()
+        agent = self.plane.pop_passenger()
         agent.position = random.choice(self.outlet_point)
         if starting_status is not None:
             agent.status.append(starting_status)
