@@ -53,6 +53,10 @@ services:
     container_name: yc_rpc
     environment:
       - PYTHONUNBUFFERED=1
+    volumes:
+      - type: bind
+        source: ./yc_rpc_server/config
+        target: /app/config
     restart: unless-stopped
     networks:
       - internal

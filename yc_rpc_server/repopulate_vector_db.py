@@ -7,7 +7,9 @@ import chromadb
 from openai import OpenAI
 from dotenv import load_dotenv
 
-load_dotenv()
+script_dir = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(script_dir, "config", ".env")
+load_dotenv(dotenv_path=env_path)
 
 API_KEY = os.getenv("API_KEY")
 URL = os.getenv("URL")
