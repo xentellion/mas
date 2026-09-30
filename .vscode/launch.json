@@ -97,6 +97,24 @@
                 "ACTIVE_LLMS": "1"
             },
             // "preLaunchTask": "Start Containers"
+        },
+        {
+            "name": "Metrics collector Debug",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/metrics_calculator",
+            "python": "${workspaceFolder}/metrics_calculator/venv_metric/bin/python",
+            "module": "uvicorn",
+            "args": [
+                "main:app",
+                "--reload",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8100"
+            ],
+            "jinja": true,
+            "envFile": "${workspaceFolder}/.env"
         }
     ]
 }

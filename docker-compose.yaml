@@ -13,15 +13,45 @@ services:
     networks:
       - internal
     attach: false
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - internal
   metrics:
-    build: ./metrics_calculator
+    build:
+      context: ./metrics_calculator
+      dockerfile: Dockerfile
+      additional_contexts:
+        shared: ./packages/shared
     command: "uvicorn main:app --host 0.0.0.0 --port 8100"
     container_name: metrics
     ports:
       - "8100:8100"
+    environment:
+      - REDIS_HOST=redis
+    depends_on:
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - internal
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 # Vector storage and analytics
 #  zipkin:
 #    image: openzipkin/zipkin
@@ -106,3 +136,4 @@ networks:
 volumes:
   grafana: 
   rabbitmq:
+  redis_data:
