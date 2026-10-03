@@ -20,7 +20,7 @@ from app.utils import data
 from app.core import AreaRender, SimWorker, Spawner
 from app.core.global_state import GLOBAL_STATE
 from app.models.agents import agent_task, Agent
-from app.models.qt import AgentPlate, GeneratorWindow
+from app.models.qt import AgentPlate, GeneratorWindow, MetricWindiow
 from app.core.constants import STEP
 
 
@@ -70,9 +70,11 @@ class MainWindow(QMainWindow):
         self.createAgentsButton.clicked.connect(self.create_agents)
 
         self.__agent_generator = GeneratorWindow()
+        self.__metric_window = MetricWindiow()
 
         self.actionGenerate.triggered.connect(self.__generate_agents)
         self.actionQuit.triggered.connect(self.__quit_app)
+        self.actionSet_metrics.triggered.connect(self.__set_metrics)
         QApplication.instance().aboutToQuit.connect(self.__cleanup_before_quit)
 
         self.agent_plates = {}
@@ -260,6 +262,9 @@ class MainWindow(QMainWindow):
 
     def __generate_agents(self):
         self.__agent_generator.show()
+
+    def __set_metrics(self):
+        self.__metric_window.show()
 
     def __cleanup_before_quit(self):
         self.stop_sim()

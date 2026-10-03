@@ -415,6 +415,7 @@
     </property>
     <addaction name="actionGenerate"/>
     <addaction name="actionSelect_agent_list"/>
+    <addaction name="actionSet_metrics"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
@@ -442,12 +443,17 @@
   </action>
   <action name="actionGenerate">
    <property name="text">
-    <string>Set Generation Parameters</string>
+    <string>Set generation parameters</string>
    </property>
   </action>
   <action name="actionSelect_agent_list">
    <property name="text">
     <string>Select agent list</string>
+   </property>
+  </action>
+  <action name="actionSet_metrics">
+   <property name="text">
+    <string>Set metrics</string>
    </property>
   </action>
  </widget>

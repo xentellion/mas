@@ -25,6 +25,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    restart: unless-stopped
     networks:
       - internal
   metrics:
@@ -39,6 +40,10 @@ services:
       - "8100:8100"
     environment:
       - REDIS_HOST=redis
+    volumes:
+      - type: bind
+        source: ./config/metrics
+        target: /app/data/
     depends_on:
       redis:
         condition: service_healthy

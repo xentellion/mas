@@ -76,7 +76,8 @@
                 "LOG_PROMPTS": "True",
                 "TPS": "30",
                 "RMQ": "http://localhost:5672",
-                "ACTIVE_LLMS": "1"
+                "ACTIVE_LLMS": "1",
+                "METRICS": "http://localhost:8100"
             },
             // "preLaunchTask": "Start Containers"
         },
@@ -114,7 +115,6 @@
                 "8100"
             ],
             "jinja": true,
-            "envFile": "${workspaceFolder}/.env"
         }
     ]
 }
